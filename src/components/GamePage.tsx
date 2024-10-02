@@ -1,5 +1,5 @@
-import { useState } from "react";
-import Board from "./Board";
+import { useEffect, useState } from "react";
+import Board, { shipPlacementForAi } from "./Board";
 
 type GameMode = "1vs1" | "1vsComputer"
 type GamePhase = "placement" | "battle"
@@ -16,15 +16,25 @@ const GamePage: React.FC<GamePageProps> = ({
     mode,
 }) => {
     // Initial gamestate logic
-    const InitializeEmptyBoard = (): Array<Array<string>> => {
+    const initializeEmptyBoard = (): Array<Array<string>> => {
         return Array(10).fill(null).map(() => Array(10).fill(""))
     }
 
-    const [playerBoard, setPlayerBoard] = useState<Array<Array<string>>>(InitializeEmptyBoard)
-    const [aiBoard, setAiBoard] = useState<Array<Array<string>>>(InitializeEmptyBoard)
+    const [playerBoard, setPlayerBoard] = useState<Array<Array<string>>>(initializeEmptyBoard())
+    const [aiBoard, setAiBoard] = useState<Array<Array<string>>>(initializeEmptyBoard())
     const [isPlayerTurn, setIsPlayerTurn] = useState<boolean>(true)
     const [gamePhase, setGamePhase] = useState<GamePhase>("placement")
 
+    // Handle Ai placement once game starts
+    useEffect(() => {
+        if (gamePhase === "battle") {
+            setAiBoard(shipPlacementForAi(initializeEmptyBoard()))
+        }
+    }, [gamePhase])
+
+    const handleStartBattle = () => {
+        setGamePhase("battle")
+    }
 
     return (
         <div>
@@ -44,7 +54,7 @@ const GamePage: React.FC<GamePageProps> = ({
                             Place your ships
                         </h2>
                         <Board board={playerBoard} setBoard={setPlayerBoard} />
-                        <button onClick={() => setGamePhase("battle")}>
+                        <button onClick={handleStartBattle}>
                             Start Battle
                         </button>
                     </div>
