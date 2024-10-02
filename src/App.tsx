@@ -1,5 +1,6 @@
 import { useState } from "react"
 import StartPage from "./components/StartPage"
+import GamePage from "./components/GamePage"
 
 type GameMode = "1vs1" | "1vsComputer"
 
@@ -23,9 +24,18 @@ const App: React.FC = () => {
 
   return (
     <div>
-      <StartPage
-        OnGameStart={startGame}
-      />
+      {/* Conditional rendering for gamestart state */}
+      {!gameStarted
+        ? (
+          <StartPage OnGameStart={startGame} />
+        ) : (
+          <GamePage
+            player1Name={player1Name}
+            player2Name={player2Name}
+            mode={mode}
+          />
+        )
+      }
     </div>
   )
 }
