@@ -35,7 +35,7 @@ const StartPage: React.FC<StartPageProps> = ({ OnGameStart }) => {
                 </label>
                 <input
                     type="text"
-                    id="player1name"
+                    id="player1Name"
                     placeholder="Username"
                     value={player1Name}
                     onChange={(e) => setPlayer1Name(e.target.value)}
@@ -50,7 +50,7 @@ const StartPage: React.FC<StartPageProps> = ({ OnGameStart }) => {
                     </label>
                     <input
                         type="text"
-                        id="player2name"
+                        id="player2Name"
                         placeholder="Username"
                         value={player2Name}
                         onChange={(e) => setPlayer2Name(e.target.value)}
