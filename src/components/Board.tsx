@@ -7,6 +7,7 @@ interface Ship {
 interface BoardProps {
     board: Array<Array<string>>
     setBoard?: (board: Array<Array<string>>) => void
+    onAttack?: (row: number, col: number) => void
 }
 
 // Set characteristic and number of ships 
@@ -18,10 +19,12 @@ const ships: Ship[] = [
     { name: "Patrol Boat", length: 2 },
 ]
 
-const Board: React.FC<BoardProps> = ({ board, setBoard }) => {
+const Board: React.FC<BoardProps> = ({ board, setBoard, onAttack }) => {
     // Handle board logic    
     const handleCellClick = (row: number, col: number) => {
-        if (setBoard) {
+        if (onAttack) {
+            onAttack(row, col) // Call attack function during battle phase
+        } else if (setBoard) {
             const newBoard = [...board]
             newBoard[row][col] = "S"
             setBoard(newBoard)
@@ -29,7 +32,7 @@ const Board: React.FC<BoardProps> = ({ board, setBoard }) => {
     }
     // Handle cell render when clicked 
     const handleCellRendring = (cell: string) => {
-        return cell === "S" ? "bg-blue-700 text-white" : "bg-blue-300"
+        return cell === "S" ? "bg-blue-700 text-white" : cell === "💥" ? "bg-red-200" : cell === "👻" ? "bg-gray-300" : "bg-blue-300"
     }
 
     return (

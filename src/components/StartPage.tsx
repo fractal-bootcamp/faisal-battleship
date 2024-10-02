@@ -13,7 +13,7 @@ interface StartPageProps {
 const StartPage: React.FC<StartPageProps> = ({ OnGameStart }) => {
     const [player1Name, setPlayer1Name] = useState<string>("")
     const [player2Name, setPlayer2Name] = useState<string>("")
-    const [mode, setMode] = useState<GameMode>("1vs1")
+    const [mode, setMode] = useState<GameMode>("1vsComputer")
 
     // handle gamestart logic 
     const handleGameStart = () => {

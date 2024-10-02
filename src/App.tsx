@@ -8,7 +8,7 @@ const App: React.FC = () => {
   const [gameStarted, setGameStarted] = useState<boolean>(false)
   const [player1Name, setPlayer1Name] = useState<string>("")
   const [player2Name, setPlayer2Name] = useState<string | null>(null)
-  const [mode, setmode] = useState<GameMode>("1vs1")
+  const [mode, setmode] = useState<GameMode>("1vsComputer")
 
   // Handle startgame logic
   const startGame = (
