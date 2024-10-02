@@ -24,6 +24,7 @@ const GamePage: React.FC<GamePageProps> = ({
     const [aiBoard, setAiBoard] = useState<Array<Array<string>>>(initializeEmptyBoard())
     const [isPlayerTurn, setIsPlayerTurn] = useState<boolean>(true)
     const [gamePhase, setGamePhase] = useState<GamePhase>("placement")
+    const [playerHitStreak, setPlayerHitStreak] = useState<boolean>(false)
 
     // Handle Ai placement once game starts
     useEffect(() => {
@@ -32,6 +33,78 @@ const GamePage: React.FC<GamePageProps> = ({
         }
     }, [gamePhase])
 
+    // Handle player1 attack on player2 board logic
+    const handlePlayerAttack = (row: number, col: number) => {
+        // Prevent clicking when its not player's turn
+        if (!isPlayerTurn) return
+
+        const newAiBoard = [...aiBoard]
+        let hit = false
+
+        if (newAiBoard[row][col] === "S") {
+            newAiBoard[row][col] = "💥" // Hit target
+            hit = true
+            setPlayerHitStreak(true) // player gets advantage with another attack
+        } else if (newAiBoard[row][col] === "") {
+            newAiBoard[row][col] = "👻" // Miss target
+            setPlayerHitStreak(false)
+        }
+        setAiBoard(newAiBoard)
+
+        if (!hit) {
+            setIsPlayerTurn(false) // End player's turn and switch to opponent
+        }
+
+        // Check win condition after player attack
+        if (checkWinCondition(newAiBoard)) {
+            alert(`${player1Name} Won!`)
+            setGamePhase("placement") // Reset game
+        }
+    }
+
+    // Handle player2 attack on player 1 board logic
+    useEffect(() => {
+        if (!isPlayerTurn && !playerHitStreak && gamePhase === "battle") {
+            setTimeout(() => {
+                const newPlayerBoard = [...playerBoard]
+
+                let aiRow: number
+                let aiCol: number
+
+                do {
+                    aiRow = Math.floor(Math.random() * 10)
+                    aiCol = Math.floor(Math.random() * 10)
+                } while (newPlayerBoard[aiRow][aiCol] === "💥" || newPlayerBoard[aiRow][aiCol] === "👻")
+
+                if (newPlayerBoard[aiRow][aiCol] === "S") {
+                    newPlayerBoard[aiRow][aiCol] = "💥" // Ai hits target
+                } else {
+                    newPlayerBoard[aiRow][aiCol] = "👻" // Ai miss target
+                }
+                setPlayerBoard(newPlayerBoard) // Update board
+                setIsPlayerTurn(true) // Switch turns after attack
+
+                // Check win condition after player attack
+                if (checkWinCondition(newPlayerBoard)) {
+                    alert(`AI Marine Won!`)
+                    setGamePhase("placement") // Reset game
+                }
+
+            }, 500)
+        }
+    }, [isPlayerTurn, playerBoard, playerHitStreak, gamePhase])
+
+    // Handle ship status logic
+    const checkWinCondition = (board: Array<Array<string>>) => {
+        for (let row of board) {
+            for (let cell of row) {
+                if (cell === "S") return false // If there is still S, the game is not over yet
+            }
+        }
+        return true // All ships are attacked, game over
+    }
+
+    // Utility function
     const handleStartBattle = () => {
         setGamePhase("battle")
     }
@@ -62,10 +135,10 @@ const GamePage: React.FC<GamePageProps> = ({
                     <div>
                         {/* Conditional rendering for playerturn */}
                         <h2>
-                            {isPlayerTurn ? `${player1Name}'s Turn` : `AI's Turn`}
+                            {isPlayerTurn ? `${player1Name}'s Turn` : `AI Marine's Turn`}
                         </h2>
-                        <Board board={playerBoard} setBoard={setPlayerBoard} />
-                        <Board board={aiBoard} />
+                        <Board board={playerBoard} />
+                        <Board board={aiBoard} onAttack={handlePlayerAttack} />
                     </div>
                 )
             }
