@@ -1,4 +1,5 @@
-import express, { Request, Response } from "express"
+import express from "express"
+import cors from "cors"
 import { createServer } from "http"
 import { Server } from "socket.io"
 
@@ -8,21 +9,24 @@ const app = express()
 const server = createServer(app)
 const io = new Server(server, {
     cors: {
-        origin: "*", // Allow any origin
+        origin: "http://localhost:5173",
     }
 })
 
+// app.use(cors({ origin: "http://localhost:5173" }))
 
 io.on("connection", (socket) => {
     console.log("A user connected");
 
+    socket.on("testEvent", (data) => {
+        console.log("Received event from client:", data);
+    })
+
     socket.on("disconnect", () => {
         console.log("User disconnected");
     })
-
 })
 
-
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`Server running on port: http://localhost:${PORT}`);
 })

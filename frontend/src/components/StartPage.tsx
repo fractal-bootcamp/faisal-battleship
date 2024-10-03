@@ -29,7 +29,7 @@ const StartPage: React.FC<StartPageProps> = ({ OnGameStart }) => {
     return (
         <div className="flex flex-col items-center bg-white p-8 rounded-lg shadow-lg max-w-md mx-auto mt-10">
             <h1 className="text-4xl font-bold mb-8 text-center">
-                Battleship Game
+                Battleship 🚢
             </h1>
             <div className="mb-4 w-full">
                 <label htmlFor="player1Name" className="block text-lg font-semibold mb-2">
@@ -65,7 +65,7 @@ const StartPage: React.FC<StartPageProps> = ({ OnGameStart }) => {
             {/* Select game mode state*/}
             <div className="mb-6 w-full">
                 <label htmlFor="mode" className="block text-lg font-semibold mb-2">
-                    Select Game Mode:
+                    Game Mode:
                 </label>
                 <select id="mode" value={mode} onChange={e => setMode(e.target.value as GameMode)} className="w-full p-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="1vs1">
