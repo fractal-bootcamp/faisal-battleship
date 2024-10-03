@@ -13,10 +13,12 @@ interface BoardProps {
     isAiBoard?: boolean
     shipsPlaced?: number // Track ship placed
     setShipsPlaced?: (count: number) => void // Update ship placement count
+    selectedShipIndex?: number
+    setSelectedShipIndex?: (index: number) => void
 }
 
 // Set characteristic and number of ships 
-const ships: Ship[] = [
+export const ships: Ship[] = [
     { name: "Carrier", length: 5 },
     { name: "Battleship", length: 4 },
     { name: "Destroyer", length: 3 },
@@ -31,14 +33,13 @@ const Board: React.FC<BoardProps> = ({
     isAiBoard = false,
     shipsPlaced = 0,
     setShipsPlaced = () => { },
+    selectedShipIndex = 0,
+    setSelectedShipIndex = () => { },
 }) => {
-    console.log('infinite board?')
-    const [selectedShipIndex, setSelectedShipIndex] = useState<number>(0) // Track the selected ship
     const [placementDirection, setPlacementDirection] = useState<Direction>("horizontal") // Track placement direction
 
     // Detect arrow key for placement direction
     useEffect(() => {
-        console.log('infinite 2?')
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
                 setPlacementDirection("horizontal")
@@ -113,18 +114,21 @@ const Board: React.FC<BoardProps> = ({
             {/* Display remaining ships */}
             {!isAiBoard && (
                 <div className="mb-4">
-                    <ul>
+                    <ul className="mb-2">
                         {ships.slice(shipsPlaced).map((ship, index) => (
-                            <li key={index}>
-                                {ship.name} – Length: {ship.length}
+                            <li key={index} className="text-gray-700 font-semibold text-center">
+                                {ship.name} (Length: {ship.length})
                             </li>
                         ))}
                     </ul>
                     <div>
                         {/* Render current placement direction */}
-                        <p>
-                            Ship direction: {placementDirection}
-                        </p>
+                        {shipsPlaced < ships.length && (
+                            <p className="text-sm text-gray-600 text-center">
+                                Ship direction: ({placementDirection}) <br />
+                                use ↕️ ↔️ to change direction
+                            </p>
+                        )}
                     </div>
                 </div>
             )}
@@ -153,7 +157,6 @@ const Board: React.FC<BoardProps> = ({
 export const shipPlacementForAi = (board: Array<Array<string>>) => {
     const directions: Direction[] = ["horizontal", "vertical"]
 
-    console.log("in ship placement for ai")
     // Handle ship placement logic
     const isPlacementValid = (
         board: Array<Array<string>>,
@@ -183,7 +186,6 @@ export const shipPlacementForAi = (board: Array<Array<string>>) => {
         length: number,
         direction: Direction
     ) => {
-        console.log("start loop")
         if (direction === "horizontal") {
             for (let i = 0; i < length; i++) {
                 board[row][col + i] = "S";
@@ -193,21 +195,18 @@ export const shipPlacementForAi = (board: Array<Array<string>>) => {
                 board[row + i][col] = "S";
             }
         }
-        console.log("end loop")
     }
 
     // Handle placement of each ship logic
     for (const ship of ships) {
         let placed = false
         while (!placed) {
-            console.log('looping')
             const row = Math.floor(Math.random() * board.length)
             const col = Math.floor(Math.random() * board[0].length)
             const direction = directions[Math.floor(Math.random() * directions.length)]
 
             if (isPlacementValid(board, row, col, ship.length, direction)) {
                 placeShip(board, row, col, ship.length, direction)
-                console.log('placed = true')
                 placed = true
             }
         }
