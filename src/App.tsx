@@ -1,8 +1,7 @@
 import { useState } from "react"
 import StartPage from "./components/StartPage"
 import GamePage from "./components/GamePage"
-
-type GameMode = "1vs1" | "1vsComputer"
+import { GameMode } from "./GameEngine"
 
 const App: React.FC = () => {
   const [gameStarted, setGameStarted] = useState<boolean>(false)
