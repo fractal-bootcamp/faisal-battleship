@@ -27,10 +27,12 @@ const StartPage: React.FC<StartPageProps> = ({ OnGameStart }) => {
     }
 
     return (
-        <div>
-            <h1>Battleship Game</h1>
-            <div>
-                <label htmlFor="player1Name">
+        <div className="flex flex-col items-center bg-white p-8 rounded-lg shadow-lg max-w-md mx-auto mt-10">
+            <h1 className="text-4xl font-bold mb-8 text-center">
+                Battleship Game
+            </h1>
+            <div className="mb-4 w-full">
+                <label htmlFor="player1Name" className="block text-lg font-semibold mb-2">
                     Player 1:
                 </label>
                 <input
@@ -39,13 +41,14 @@ const StartPage: React.FC<StartPageProps> = ({ OnGameStart }) => {
                     placeholder="Username"
                     value={player1Name}
                     onChange={(e) => setPlayer1Name(e.target.value)}
+                    className="w-full p-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
             </div>
 
             {/* conditional rendering for mode state*/}
             {mode === "1vs1" && (
-                <div>
-                    <label htmlFor="player2Name">
+                <div className="mb-4 w-full">
+                    <label htmlFor="player2Name" className="block text-lg font-semibold mb-2">
                         Player 2:
                     </label>
                     <input
@@ -54,16 +57,17 @@ const StartPage: React.FC<StartPageProps> = ({ OnGameStart }) => {
                         placeholder="Username"
                         value={player2Name}
                         onChange={(e) => setPlayer2Name(e.target.value)}
+                        className="w-full p-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                 </div>
             )}
 
             {/* Select game mode state*/}
-            <div>
-                <label htmlFor="mode">
+            <div className="mb-6 w-full">
+                <label htmlFor="mode" className="block text-lg font-semibold mb-2">
                     Select Game Mode:
                 </label>
-                <select id="mode" value={mode} onChange={e => setMode(e.target.value as GameMode)}>
+                <select id="mode" value={mode} onChange={e => setMode(e.target.value as GameMode)} className="w-full p-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="1vs1">
                         1vs1
                     </option>
@@ -72,7 +76,7 @@ const StartPage: React.FC<StartPageProps> = ({ OnGameStart }) => {
                     </option>
                 </select>
             </div>
-            <button onClick={handleGameStart}>
+            <button onClick={handleGameStart} className="bg-blue-600 text-white py-2 px-6 rounded-lg shadow-lg hover:bg-blue-700 transition w-full">
                 Start Game
             </button>
         </div>
