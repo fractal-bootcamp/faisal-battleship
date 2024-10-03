@@ -1,6 +1,6 @@
 import { useState } from "react"
-// set game mode at start
-type GameMode = "1vs1" | "1vsComputer"
+import { GameMode } from "../GameEngine"
+
 // set types of players
 interface StartPageProps {
     OnGameStart: (
