@@ -13,13 +13,13 @@ interface StartPageProps {
 const StartPage: React.FC<StartPageProps> = ({ OnGameStart }) => {
     const [player1Name, setPlayer1Name] = useState<string>("")
     const [player2Name, setPlayer2Name] = useState<string>("")
-    const [mode, setMode] = useState<GameMode>("1vsComputer")
+    const [mode, setMode] = useState<GameMode>("1vsAiMarine")
 
     // handle gamestart logic 
     const handleGameStart = () => {
         if (mode === "1vs1" && player1Name && player2Name) {
             OnGameStart(player1Name, player2Name, mode)
-        } else if (mode === "1vsComputer" && player1Name) {
+        } else if (mode === "1vsAiMarine" && player1Name) {
             OnGameStart(player1Name, "AI Marine", mode)
         } else {
             alert("Please fill out all the required field!")
@@ -69,10 +69,10 @@ const StartPage: React.FC<StartPageProps> = ({ OnGameStart }) => {
                 </label>
                 <select id="mode" value={mode} onChange={e => setMode(e.target.value as GameMode)} className="w-full p-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="1vs1">
-                        1vs1
+                        1 vs 1
                     </option>
-                    <option value="1vsComputer">
-                        1vsComputer
+                    <option value="1vsAiMarine">
+                        1 vs AI Marine
                     </option>
                 </select>
             </div>
