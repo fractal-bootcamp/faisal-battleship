@@ -1,6 +1,6 @@
 export type Direction = "horizontal" | "vertical"
 export type GamePhase = "placement" | "battle"
-export type GameMode = "1vs1" | "1vsComputer"
+export type GameMode = "1vs1" | "1vsAiMarine"
 export type Board = Array<Array<string>>
 
 interface Ship {

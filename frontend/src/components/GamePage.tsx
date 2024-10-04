@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Board from "./Board";
+import socket from "../SocketOnGameState";
 import {
     createInitialGameState,
     handlePlayerAttack,
@@ -11,10 +12,12 @@ import {
     Direction,
     GameMode,
 } from "../GameEngine"
+
 interface GamePageProps {
     player1Name: string
     player2Name: string | null
     mode: GameMode
+    idSession: string
 }
 
 const GamePage: React.FC<GamePageProps> = ({
@@ -23,6 +26,7 @@ const GamePage: React.FC<GamePageProps> = ({
     mode,
 }) => {
     const [gameState, setGameState] = useState(createInitialGameState())
+    const [player2Board, setPlayer2Board] = useState(createInitialGameState().playerBoard) // Seperate board for player2 in 1vs1 mode
     const [placementDirection, setPlacementDirection] = useState<Direction>("horizontal")
 
     // Detect arrow key for placement direction
@@ -38,9 +42,40 @@ const GamePage: React.FC<GamePageProps> = ({
         return () => window.removeEventListener("keydown", handleKeyDown)
     }, [])
 
-    // Handle Ai turn with a delay
+    // Listen for opponent ship placement and attack in 1vs1 mode
     useEffect(() => {
-        if (!gameState.isPlayerTurn && gameState.gamePhase === "battle") {
+        if (mode === "1vs1") {
+            // Listen for ship placement
+            socket.on("opponentPlacedShip", (data) => {
+                console.log("Oppenent placed a ship:", data);
+                setPlayer2Board((prev) => (
+                    placeShip(prev, data.row, data.col, data.ship, data.driection)
+                ))
+            })
+
+            // Listen for opponent attack
+            socket.on("attack", (data) => {
+                console.log("Opponent attacked:", data);
+                const [newBoard] = handlePlayerAttack(gameState.playerBoard, data.row, data.col)
+                setGameState((prev) => ({
+                    ...prev,
+                    playerBoard: newBoard,
+                    isPlayerTurn: true, // Switch turns
+                }))
+
+                //  Check if player1 ships are destroyed
+                if (checkWinCondition(newBoard)) {
+                    alert(`${player2Name} Won!`)
+                    resetGame()
+                }
+            })
+        }
+    }, [gameState, mode])
+
+
+    // Handle Ai turn with a delay in 1vsAiMarine mode
+    useEffect(() => {
+        if (!gameState.isPlayerTurn && gameState.gamePhase === "battle" && mode === "1vsAiMarine") {
             const aiTimeout = setTimeout(() => {
                 let row, col
                 do {
@@ -56,6 +91,7 @@ const GamePage: React.FC<GamePageProps> = ({
                     isPlayerTurn: true // Switch turns back
                 }))
 
+                // Check if player1 ships are destroyed
                 if (checkWinCondition(newPlayerBoard)) {
                     alert(`AI Marine Won!`)
                     resetGame()
@@ -63,37 +99,9 @@ const GamePage: React.FC<GamePageProps> = ({
             }, 200)
             return () => clearTimeout(aiTimeout)
         }
-    }, [gameState.isPlayerTurn, gameState.playerBoard, gameState.gamePhase])
+    }, [gameState.isPlayerTurn, gameState.playerBoard, gameState.gamePhase, mode])
 
-    // Total number of ship parts
-    const totalShipParts = ships.reduce((sum, ship) => sum + ship.length, 0)
-
-    // Handle attack logic
-    const handleAttack = (row: number, col: number) => {
-        // Prevent clicking when its not player's turn
-        if (!gameState.isPlayerTurn || gameState.gamePhase !== "battle") return
-
-        const [newAiBoard, hit, destroyedAiShips, hitStreak] = handlePlayerAttack(
-            gameState.aiBoard,
-            row,
-            col,
-        )
-
-        setGameState((prev) => ({
-            ...prev,
-            aiBoard: newAiBoard,
-            isPlayerTurn: hit,
-            destroyedAiShips: prev.destroyedAiShips + destroyedAiShips,
-            playerHitStreak: hitStreak,
-        }))
-
-        if (checkWinCondition(newAiBoard)) {
-            alert(`${player1Name} Won!`)
-            resetGame()
-        }
-    }
-
-    // Handle ship placement logic
+    // Handle ship placement logic and Emit placement to server for 1vs1 mode
     const handleShipPlacement = (row: number, col: number) => {
         if (gameState.shipsPlaced >= ships.length) return // All ships placed
 
@@ -107,19 +115,91 @@ const GamePage: React.FC<GamePageProps> = ({
                 playerBoard: newBoard,
                 shipsPlaced: prev.shipsPlaced + 1,
             }))
+
+            // Emit placement to server in 1vs1 mode
+            if (mode === "1vs1") {
+                socket.emit("placeShip", {
+                    row, col, ship, direction: placementDirection
+                })
+            }
         }
     }
 
+    // Handle attack logic for both AI and player2
+    const handleAttack = (row: number, col: number) => {
+        // Prevent clicking when its not player's turn
+        if (!gameState.isPlayerTurn || gameState.gamePhase !== "battle") return
+
+        let newBoard, hit, destroyedShips, hitStreak
+
+        if (mode === "1vs1") {
+            [newBoard, hit, destroyedShips, hitStreak] = handlePlayerAttack(
+                player2Board,
+                row,
+                col,
+            )
+            setPlayer2Board(newBoard)
+            // Emit attack to server in 1vs1 mode
+            socket.emit("attack", {
+                row,
+                col
+            })
+            // Check if player2 ships are destroyed
+            if (checkWinCondition(newBoard)) {
+                alert(`${player1Name} Won!`)
+                resetGame()
+            } else if (hit) {
+                setGameState((prev) => ({
+                    ...prev,
+                    playerHitStreak: hitStreak, // Advantage for hit
+                }))
+            } else {
+                setGameState((prev) => ({
+                    ...prev,
+                    isPlayerTurn: false, // Pass turn back
+                }))
+            }
+        } else {
+            [newBoard, hit, destroyedShips, hitStreak] = handlePlayerAttack(
+                gameState.aiBoard,
+                row,
+                col
+            )
+            setGameState((prev) => ({
+                ...prev,
+                aiBoard: newBoard,
+                destroyedAiShips: prev.destroyedAiShips + destroyedShips,
+                playerHitStreak: hitStreak,
+            }))
+            // Check if Ai ships are destroyed
+            if (checkWinCondition(newBoard)) {
+                alert(`${player1Name} Won!`)
+                resetGame()
+            } else if (!hit) {
+                setGameState((prev) => ({
+                    ...prev,
+                    isPlayerTurn: false, // Pas turn to Ai
+                }))
+            }
+        }
+    }
+
+    // Utility functions
     const startBattle = () => {
         setGameState((prev) => ({
             ...prev,
-            aiBoard: placeShipsForAi(),
-            gamePhase: "battle"
+            aiBoard: mode === "1vsAiMarine" ? placeShipsForAi() : prev.aiBoard,
+            gamePhase: "battle",
+            isPlayerTurn: true // Player1 starts
         }))
     }
     const resetGame = () => {
         setGameState(createInitialGameState())
+        setPlayer2Board(createInitialGameState().playerBoard)
     }
+
+    // Total number of ship parts
+    const totalShipParts = ships.reduce((sum, ship) => sum + ship.length, 0)
 
     return (
         <div className="flex flex-col items-center bg-gray-100 p-6 rounded-lg shadow-md w-full h-screen max-h-screen overflow-hidden">
@@ -158,8 +238,8 @@ const GamePage: React.FC<GamePageProps> = ({
                 <div className="w-1/2 h-full flex flex-col items-center p-4">
                     <h2 className="text-xl font-semibold mb-2 text-center">{player2Name || "AI Marine"}'s Board</h2>
                     <Board
-                        board={gameState.aiBoard}
-                        isAiBoard={mode === "1vsComputer"}
+                        board={mode === "1vs1" ? player2Board : gameState.aiBoard}
+                        isAiBoard={mode === "1vsAiMarine"}
                         onAttack={gameState.gamePhase === "battle" ? handleAttack : undefined}
                     />
                 </div>
