@@ -1,16 +1,20 @@
 import { useEffect, useState } from "react";
-import Board from "./Board";
 import socket from "../SocketOnGameState";
 import {
-    createInitialGameState,
-    handlePlayerAttack,
-    placeShipsForAi,
-    checkWinCondition,
-    ships,
-    placeShip,
-    isPlacementValid,
     Direction,
+    GamePhase,
     GameMode,
+    PlayerRole,
+    GameState,
+    PlayerState,
+    Cell,
+    ShipName,
+    ShipDetails,
+    createInitialGameState,
+    placeShip,
+    handleAttack,
+    handleAiTurn,
+    resetGame
 } from "../GameEngine"
 
 interface GamePageProps {
@@ -24,10 +28,13 @@ const GamePage: React.FC<GamePageProps> = ({
     player1Name,
     player2Name,
     mode,
+    idSession,
 }) => {
-    const [gameState, setGameState] = useState(createInitialGameState())
-    const [player2Board, setPlayer2Board] = useState(createInitialGameState().playerBoard) // Seperate board for player2 in 1vs1 mode
+    const [gameState, setGameState] = useState<GameState>(() =>
+        createInitialGameState(mode === "1vsAiMarine")
+    )
     const [placementDirection, setPlacementDirection] = useState<Direction>("horizontal")
+    const [isReady, setIsReady] = useState<boolean>(false)
 
     // Detect arrow key for placement direction
     useEffect(() => {
@@ -42,8 +49,27 @@ const GamePage: React.FC<GamePageProps> = ({
         return () => window.removeEventListener("keydown", handleKeyDown)
     }, [])
 
-    // Listen for opponent ship placement and attack in 1vs1 mode
+    // Join game session and determine the players 
     useEffect(() => {
+        socket.emit("joinSession", { idSession, playername: player1Name || player2Name })
+
+        // Determine players in session
+        socket.on("assignRole", (role: PlayerRole) => {
+            setPlayerRole(role)
+        })
+
+        // Update player names
+        socket.on("updatePlayerNames", ({ player1Name, player2Name }) => {
+            setPlayer1Name(player1Name)
+            setPlayer2Name(player2Name)
+        })
+
+        // Listen for opponent readiness
+        socket.on("opponentReady", () => {
+            setOpponentReady(true)
+            alert(`${player2Name} is ready!`)
+        })
+
         if (mode === "1vs1") {
             // Listen for ship placement
             socket.on("opponentPlacedShip", (data) => {
@@ -70,7 +96,14 @@ const GamePage: React.FC<GamePageProps> = ({
                 }
             })
         }
-    }, [gameState, mode])
+
+        return () => {
+            socket.emit("leaveSession", idSession)
+            socket.off("opponentReady")
+            socket.off("opponentPlacedShip")
+            socket.off("attack")
+        }
+    }, [gameState, mode, idSession, currentPlayer1Name, currentPlayer2Name])
 
 
     // Handle Ai turn with a delay in 1vsAiMarine mode
@@ -119,7 +152,7 @@ const GamePage: React.FC<GamePageProps> = ({
             // Emit placement to server in 1vs1 mode
             if (mode === "1vs1") {
                 socket.emit("placeShip", {
-                    row, col, ship, direction: placementDirection
+                    row, col, ship, direction: placementDirection, idSession, playerRole
                 })
             }
         }
@@ -142,13 +175,14 @@ const GamePage: React.FC<GamePageProps> = ({
             // Emit attack to server in 1vs1 mode
             socket.emit("attack", {
                 row,
-                col
+                col,
+                idSession,
             })
             // Check if player2 ships are destroyed
             if (checkWinCondition(newBoard)) {
                 alert(`${player1Name} Won!`)
                 resetGame()
-            } else if (hit) {
+            } else if (!hit) {
                 setGameState((prev) => ({
                     ...prev,
                     playerHitStreak: hitStreak, // Advantage for hit
@@ -186,16 +220,49 @@ const GamePage: React.FC<GamePageProps> = ({
 
     // Utility functions
     const startBattle = () => {
-        setGameState((prev) => ({
-            ...prev,
-            aiBoard: mode === "1vsAiMarine" ? placeShipsForAi() : prev.aiBoard,
-            gamePhase: "battle",
-            isPlayerTurn: true // Player1 starts
-        }))
+        setIsReady(true)
+
+        if (mode === "1vsAiMarine") {
+            // AI places ships automatically
+            const aiBoard = placeShipsForAi()
+            setGameState((prev) => ({
+                ...prev,
+                aiBoard,
+                gamePhase: "battle",
+                isPlayerTurn: true // Player1 starts
+            }))
+        } else {
+            // For 1vs1 mode
+            socket.emit("playerReady", { idSession, playerRole })
+
+            // Check if players are done with ship placement
+            if (opponentReady) {
+                setGameState((prev) => ({
+                    ...prev,
+                    gamePhase: "battle",
+                    isPlayerTurn: playerRole === "player1"
+                }))
+            } else {
+                alert(`Waiting for ${player2Name} to place ships.`)
+            }
+        }
     }
+
+    useEffect(() => {
+        if (isReady && opponentReady) {
+            setGameState((prev) => ({
+                ...prev,
+                gamePhase: "battle",
+                isPlayerTurn: playerRole === "player1",
+            }))
+        }
+    }, [isReady, opponentReady])
+
     const resetGame = () => {
         setGameState(createInitialGameState())
         setPlayer2Board(createInitialGameState().playerBoard)
+        setIsReady(false)
+        setOpponentReady(false)
     }
 
     // Total number of ship parts

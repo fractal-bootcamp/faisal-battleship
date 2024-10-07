@@ -1,3 +1,6 @@
+import { useState } from "react"
+import { isEmpty } from "lodash"
+
 export type Direction = "horizontal" | "vertical"
 export type GamePhase = "placement" | "battle" | "finished"
 export type GameMode = "1vs1" | "1vsAiMarine"
@@ -39,9 +42,7 @@ export interface GameState {
 export interface PlayerState {
     ships: Record<ShipName, ShipDetails> // Using Record to map ship names to ShipDetails
     board: Board // Player1 board
-    enemyBoard: Board // What player1 see of enemyBoard
     myShots: Shot[] // History of all the shots made this game
-    enemyShots: Shot[] // History of all the shots enemy made this game
     shotsLeft: number // Number of shots player has left
 }
 
@@ -75,9 +76,7 @@ export const createInitialGameState = (isEnemyAI: boolean): GameState => ({
             patrol: { name: ShipType.Patrol, length: 2, direction: "horizontal", location: {} },
         },
         board: initializeEmptyBoard(),
-        enemyBoard: initializeEmptyBoard(),
         myShots: [],
-        enemyShots: [],
         shotsLeft: 1,
     },
     player2: {
@@ -89,9 +88,7 @@ export const createInitialGameState = (isEnemyAI: boolean): GameState => ({
             patrol: { name: ShipType.Patrol, length: 2, direction: "horizontal", location: {} },
         },
         board: initializeEmptyBoard(),
-        enemyBoard: initializeEmptyBoard(),
         myShots: [],
-        enemyShots: [],
         shotsLeft: 1,
     }
 })
@@ -109,6 +106,12 @@ export const placeShip = (
     const game = structuredClone(prevGame) // create a deep copy of the previous game state so we don't modify it in place.
     const playerState = game[player]
     const ship = playerState.ships[shipName]
+
+    // Check if ship already exists
+    if (!isEmpty(ship.location)) {
+        console.warn("This ship (" + ship.name + ") already exists")
+        return game;
+    }
 
     // Calculate board size
     const boardSize = Math.sqrt(game.ctx.boardSize)
@@ -172,12 +175,19 @@ export const handleAttack = (
 
     const defendingPlayer = attackingPlayer === "player1" ? "player2" : "player1" // Determine defending player
     const defendingState = game[defendingPlayer] // Get defending player's state
+    const attackingState = game[attackingPlayer] // Get defending player's state
 
     // Calculate board size
     const boardSize = Math.sqrt(game.ctx.boardSize)
 
+    console.log(attackingState.board, targetCell)
+
+    // currentValueOfTargetCell
+    const cVOTC = defendingState.board[Math.floor(targetCell / boardSize)][targetCell % boardSize];
+
     // Prevent attacking same cell twice
-    if (defendingState.enemyBoard[Math.floor(targetCell / boardSize)][targetCell % boardSize] !== "💥") {
+    // @TODO: review
+    if (["💥", "👻"].includes(cVOTC)) {
         game.ctx.alert = alerts.attackPlacementError
         console.warn(game.ctx.alert)
         return game
@@ -186,7 +196,9 @@ export const handleAttack = (
     // Determine if the shot is a hit
     let hit = false
     for (const ship of Object.values(defendingState.ships)) {
+        console.log(ship)
         if (ship.location && ship.location[targetCell] === "S") {
+            console.log("hit")
             hit = true
             ship.location[targetCell] = "💥"
             defendingState.board[Math.floor(targetCell / boardSize)][targetCell % boardSize] = "💥"
@@ -199,7 +211,14 @@ export const handleAttack = (
                     game.ctx.alert = alerts.winAlert(attackingPlayer)
                     alert(game.ctx.alert)
                     game.ctx.gamePhase = "finished"
-                    return game
+
+                    const newPlayerState: PlayerState = defendingState;
+
+
+                    return {
+                        ...game,
+                        [defendingPlayer]: newPlayerState
+                    }
                 }
             }
             break
@@ -207,19 +226,23 @@ export const handleAttack = (
     }
 
     // Mark the attack on enemy board if its a hit or miss
-    defendingState.enemyBoard[Math.floor(targetCell / boardSize)][targetCell % boardSize] =
+    defendingState.board[Math.floor(targetCell / boardSize)][targetCell % boardSize] =
         hit ? "💥" : "👻"
 
     // Track shot history
     game[attackingPlayer].myShots.push(targetCell)
-    game[defendingPlayer].enemyShots.push(targetCell)
 
     // If hit, player gets another shot; if miss, switch turns
     if (!hit) {
         game.ctx.currentPlayer = defendingPlayer
     }
 
-    return game
+    console.log("no hits", defendingState)
+
+    return {
+        ...game,
+        [defendingPlayer]: defendingState
+    }
 }
 
 // Handle Ai attack
@@ -233,11 +256,36 @@ export const handleAiTurn = (gameState: GameState): GameState => {
     // AI selects a random target that hasn't been attacked
     do {
         targetCell = Math.floor(Math.random() * boardSize * boardSize)
-    } while (game.player1.enemyBoard[Math.floor(targetCell / boardSize)][targetCell % boardSize] !== "")
+    } while (game.player2.board[Math.floor(targetCell / boardSize)][targetCell % boardSize] !== "")
 
     return handleAttack(game, "player2", targetCell)
 }
 
 export const resetGame = (isEnemyAI: boolean): GameState => {
     return createInitialGameState(isEnemyAI)
+}
+
+export const useGameEngine = () => {
+    const isAI = true
+    const [gameState, setGameState] = useState(createInitialGameState(isAI))
+
+    const reset = () => {
+        const newGameState = resetGame(isAI)
+
+        setGameState(newGameState)
+    }
+
+    const attack = (targetCell: CellIndex) => {
+        const newGameState = handleAttack(gameState, gameState.ctx.currentPlayer, targetCell);
+
+        setGameState(newGameState)
+    }
+
+    const place = (player: PlayerRole, shipName: ShipName, placementLocation: CellIndex) => {
+        const newGameState = placeShip(gameState, player, shipName, placementLocation)
+        setGameState(newGameState)
+    }
+
+
+    return { gameState, reset, attack, place }
 }
