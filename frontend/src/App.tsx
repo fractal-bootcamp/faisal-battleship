@@ -4,6 +4,7 @@ import GamePageWrapper from "./components/GamePageWrapper"
 import { GameMode } from "./GameEngine"
 import { v4 as uuidv4 } from "uuid"
 import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom"
+import "./index.css"
 
 const App: React.FC = () => {
   const [player1Name, setPlayer1Name] = useState<string>("")

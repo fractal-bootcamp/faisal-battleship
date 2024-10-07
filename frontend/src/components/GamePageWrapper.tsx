@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom"
-import GamePage from "./GamePage"
+import Game from "../Game"
 import { GameMode } from "../GameEngine"
 
 interface GamePageWrapperProps {
@@ -16,14 +16,8 @@ const GamePageWrapper: React.FC<GamePageWrapperProps> = ({
     const { idSession } = useParams<{ idSession: string }>()
 
     return (
-        <GamePage
-            player1Name={player1Name}
-            player2Name={player2Name}
-            mode={mode}
-            idSession={idSession!}
-        />
+        <Game />
     )
 }
-
 
 export default GamePageWrapper
