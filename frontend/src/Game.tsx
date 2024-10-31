@@ -1,9 +1,32 @@
 import { isEmpty } from "lodash";
-import { type Board, Cell, CellIndex, GameState, ShipName, useGameEngine } from "./GameEngine";
+import { type Board, Cell, CellIndex, GameState, ShipName, useGameEngine, handleAiTurn } from "./GameEngine";
 import ShipStatus from "./components/ShipStatus";
+import { GameMode } from "./GameEngine";
+import { useEffect, useState } from "react";
 
-const Game = () => {
+interface GameProps {
+    mode: GameMode
+    player1Name: string
+    player2Name: string
+}
+
+const Game: React.FC<GameProps> = ({ mode, player1Name, player2Name }) => {
     const { gameState, reset, attack, place } = useGameEngine()
+    const [gameStateState, setGameState] = useState(gameState)
+
+    // Add AI turn effect
+    useEffect(() => {
+        if (mode === "1vsAiMarine" &&
+            gameState.ctx.currentPlayer === "player2" &&
+            gameState.ctx.gamePhase === "battle") {
+            const timer = setTimeout(() => {
+                const newGameState = handleAiTurn(gameState)
+                setGameState(newGameState)
+            }, 1000)
+
+            return () => clearTimeout(timer)
+        }
+    }, [gameState.ctx.currentPlayer, gameState.ctx.gamePhase])
 
     const currentPlacementForPlayer1 = Object.entries(gameState.player1.ships).find(([_, shipDetails]) => {
         return isEmpty(shipDetails.location)
@@ -39,18 +62,7 @@ const Game = () => {
         }
     }
 
-    const getGamePhaseMessage = () => {
-        if (isBattleActive) {
-            return "Battle Phase: Attack your opponent's ships!"
-        }
-        if (currentPlacementForPlayer1) {
-            return `Player 1 is placing ${currentPlacementForPlayer1}`
-        }
-        if (currentPlacementForPlayer2) {
-            return `Player 2 is placing ${currentPlacementForPlayer2}`
-        }
-        return "All ships placed - Ready for battle!"
-    }
+
 
     const handleRestart = () => {
         reset()
@@ -82,7 +94,9 @@ const Game = () => {
                     {/* Player 1's section */}
                     <div className="flex flex-col items-center gap-4">
                         <h2 className="text-xl font-bold mb-4">
-                            {gameState.ctx.currentPlayer === "player1" ? "My Board" : "Enemy Board"}
+                            {mode === "1vsAiMarine" && gameState.ctx.currentPlayer === "player2"
+                                ? "AI Marine's Turn"
+                                : `${gameState.ctx.currentPlayer === "player1" ? "My Board" : "Enemy Board"}`}
                         </h2>
                         <div className="bg-blue-50 p-6 rounded-lg border-2 border-blue-200">
                             <div className="flex gap-4">
