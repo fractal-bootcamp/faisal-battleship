@@ -36,7 +36,7 @@ const Board: React.FC<BoardProps> = ({
 
     // Function to get cell style based on its state
     const getCellStyle = (value: Cell) => {
-        const baseStyle = "w-full h-full flex items-center justify-center transition-colors duration-200"
+        const baseStyle = "w-10 h-10 flex items-center justify-center transition-colors duration-200 text-xl"
 
         // Hide AI ships during placement phase
         if (isAiBoard && !isBattleActive && value === "🚢") {
@@ -61,14 +61,14 @@ const Board: React.FC<BoardProps> = ({
                 {isAiBoard && !isBattleActive ? "AI Board" : title}
             </h2>
             <div
-                className={`grid grid-cols-10 gap-1 w-96 h-96 ${isDisabled ? 'opacity-60' : ''
+                className={`grid grid-cols-10 gap-1 ${isDisabled ? 'opacity-60' : ''
                     } ${className || ''}`}
             >
                 {cells.flat().map((value, index) => (
                     <div
                         key={index}
                         onClick={() => !isDisabled && onCellClick(index)}
-                        className={`border border-gray-300 
+                        className={`w-10 h-10 border border-gray-300 
                             ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                     >
                         <div className={getCellStyle(value)}>
