@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react"
 import StartPage from "./components/StartPage"
-import GamePageWrapper from "./components/GamePageWrapper"
 import { GameMode } from "./GameEngine"
 import { v4 as uuidv4 } from "uuid"
 import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom"
@@ -45,14 +44,14 @@ const App: React.FC = () => {
       />
 
       {/* Game page route with session Id */}
-      <Route
+      {/* <Route
         path="/game/:idSession"
-        element={<GamePageWrapper
-          player1Name={player1Name}
+        element={<Game
+          player1Name={player1Name} 
           player2Name={player2Name || ""}
           mode={mode}
         />}
-      />
+      /> */}
     </Routes>
   )
 }
