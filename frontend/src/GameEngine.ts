@@ -37,7 +37,7 @@ export interface GameState {
         showWinnerModal: boolean
         winner: PlayerRole | null
     },
-    player1: PlayerState // Important that this key matches the Player
+    player1: PlayerState
     player2: PlayerState
 }
 
@@ -116,7 +116,7 @@ export const placeShip = (
 
     // Check if ship already exists
     if (!isEmpty(ship.location)) {
-        console.warn("This ship (" + ship.name + ") already exists")
+        console.warn(`This ship ${ship.name} already exists`)
         return game;
     }
 
