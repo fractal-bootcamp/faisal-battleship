@@ -1,16 +1,9 @@
 import { useState } from "react"
 import { GameMode } from "../GameEngine"
+import { useGame } from "../contexts/GameContext"
 
-// set types of players
-interface StartPageProps {
-    OnGameStart: (
-        player1Name: string,
-        player2Name: string | null,
-        mode: GameMode,
-    ) => void
-}
-// create startpage component with usestate for props
-const StartPage: React.FC<StartPageProps> = ({ OnGameStart }) => {
+const StartPage = () => {
+    const { startGame } = useGame()
     const [player1Name, setPlayer1Name] = useState<string>("")
     const [player2Name, setPlayer2Name] = useState<string>("")
     const [mode, setMode] = useState<GameMode>("1vsAiMarine")
@@ -18,9 +11,9 @@ const StartPage: React.FC<StartPageProps> = ({ OnGameStart }) => {
     // handle gamestart logic 
     const handleGameStart = () => {
         if (mode === "1vs1" && player1Name && player2Name) {
-            OnGameStart(player1Name, player2Name, mode)
+            startGame(player1Name, player2Name, mode)
         } else if (mode === "1vsAiMarine" && player1Name) {
-            OnGameStart(player1Name, "AI Marine", mode)
+            startGame(player1Name, "AI Marine", mode)
         } else {
             alert("Please fill out all the required field!")
         }
