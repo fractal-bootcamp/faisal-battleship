@@ -1,6 +1,7 @@
 import express from "express"
 import { createServer } from "http"
 import { Server } from "socket.io"
+import { SocketEvents, JoinSessionPayload, PlaceShipPayload, PlayerReadyPayload, AttackPayload, PlayerRole } from '../../shared/types/SocketEvents';
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -26,12 +27,12 @@ const gameSessions: {
 } = {}
 
 // Create socket connection with event listerners and broadcast for synchtonization
-io.on("connection", (socket) => {
+io.on(SocketEvents.CONNECT, (socket) => {
     console.log("A user connected");
 
     // Listen for session connection
-    socket.on("joinSession", ({ idSession, playerName }) => {
-        socket.join(idSession)
+    socket.on(SocketEvents.JOIN_SESSION, ({ idSession, playerName }: JoinSessionPayload) => {
+        socket.join(idSession);
         console.log(`User joined session: ${idSession}, Name: ${playerName}`);
 
         // Initialize session state if not already created
@@ -44,83 +45,74 @@ io.on("connection", (socket) => {
                 player1ShipsPlaces: false,
                 player2ShipsPlaces: false,
             }
-            socket.emit("assignRole", "player1")
+            // Assign role to player
+            socket.emit(SocketEvents.ASSIGN_ROLE, PlayerRole.PLAYER1);
         } else if (!gameSessions[idSession].player2Name) {
-            gameSessions[idSession].player2Name = playerName
-            socket.emit("assignRole", "player2")
+            gameSessions[idSession].player2Name = playerName;
+            socket.emit(SocketEvents.ASSIGN_ROLE, PlayerRole.PLAYER2);
         } else {
-            socket.emit("assignRole", "spectator") // If more than 2 players joined
+            socket.emit(SocketEvents.ASSIGN_ROLE, PlayerRole.SPECTATOR); // If no more slots, assign spectator role
         }
 
-        // Update player names
-        io.to(idSession).emit("updatePlayerNames", {
+        io.to(idSession).emit(SocketEvents.UPDATE_PLAYER_NAMES, {
             player1Name: gameSessions[idSession].player1Name,
             player2Name: gameSessions[idSession].player2Name,
-        })
-    })
+        });
+    });
 
-    // Listen for ship placement
-    socket.on("placeShip", (data) => {
-        const { idSession, playerRole } = data
+    socket.on(SocketEvents.PLACE_SHIP, (data: PlaceShipPayload) => {
+        const { idSession, playerRole } = data;
         console.log(`Ship placed by ${playerRole} in session ${idSession}:`, data);
 
-        // Store ship placement based on player role
+
         if (playerRole === "player1") {
-            gameSessions[idSession].player1ShipsPlaces = true
+            gameSessions[idSession].player1ShipsPlaces = true;
         } else if (playerRole === "player2") {
-            gameSessions[idSession].player2ShipsPlaces = true
+            gameSessions[idSession].player2ShipsPlaces = true;
         }
 
-        // Notify opponent about ship placement
-        socket.to(idSession).emit("opponentPlacedShip", data)
+        //
+        socket.to(idSession).emit(SocketEvents.OPPONENT_PLACED_SHIP, data);
 
-        // Start the game if both player placed their ships
         if (gameSessions[idSession].player1ShipsPlaces &&
             gameSessions[idSession].player2ShipsPlaces
         ) {
-            io.to(idSession).emit("bothPlayersReady")
+            io.to(idSession).emit(SocketEvents.BOTH_PLAYERS_READY);
         }
-    })
+    });
 
-    // Handle player readiness
-    socket.on("playerReady", ({ idSession, playerRole }) => {
-        const room = gameSessions[idSession]
+    socket.on(SocketEvents.PLAYER_READY, ({ idSession, playerRole }: PlayerReadyPayload) => {
+        const room = gameSessions[idSession];
 
-        if (!room) return
+        if (!room) return;
 
-        // Update readiness for players
         if (playerRole === "player1") {
-            room.player1Ready = true
+            room.player1Ready = true;
         } else {
-            room.player2Ready = true
+            room.player2Ready = true;
         }
 
-        // If both players are ready, notify session the for the game to start
         if (room.player1Ready && room.player2Ready) {
-            io.to(idSession).emit("bothPlayersReady")
+            io.to(idSession).emit(SocketEvents.BOTH_PLAYERS_READY);
         } else {
-            // Notify opponent the other player is ready
-            socket.to(idSession).emit("opponentReady")
+            socket.to(idSession).emit(SocketEvents.OPPONENT_READY);
         }
-    })
+    });
 
-    // Listen for attack moves
-    // this needs to be documented. wtf is data? other engineers on the team must know or they can't help.
-    socket.on("attack", (data) => {
-        const { idSession } = data
-        console.log("Player attack:", data)
-        // Broadcast attack to opponent
-        socket.to(data.idSession).emit("opponentAttack", data)
-    })
+    socket.on(SocketEvents.ATTACK, (data: AttackPayload) => {
+        const { idSession } = data;
+        console.log("Player attack:", data);
+        socket.to(data.idSession).emit(SocketEvents.OPPONENT_ATTACK, data);
+    });
 
-    socket.on("leaveSession", (idSession) => {
-        socket.leave(idSession)
+    socket.on(SocketEvents.LEAVE_SESSION, (idSession: string) => {
+        socket.leave(idSession);
         console.log(`User left session: ${idSession}`);
-    })
+    });
 
-    socket.on("disconnect", () => {
+    socket.on(SocketEvents.DISCONNECT, () => {
         console.log("User disconnected");
-    })
+    });
 })
 
 server.listen(PORT, () => {

@@ -1,7 +1,7 @@
 import { isEmpty } from "lodash";
-import { ShipName, useGameEngine, handleAiTurn, placeShip, Direction } from "./GameEngine";
+import { ShipName, useGameEngine, handleAiTurn, Direction } from "./services/GameEngine";
 import ShipStatus from "./components/ShipStatus";
-import { GameMode } from "./GameEngine";
+import { GameMode } from "./services/GameEngine";
 import { useEffect, useState } from "react";
 import { useNavigate } from 'react-router-dom';
 import Board from "./components/Board";

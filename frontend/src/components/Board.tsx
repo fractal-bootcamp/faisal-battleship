@@ -1,4 +1,4 @@
-import { Cell, GameState, Board as BoardType } from "../GameEngine";
+import { Cell, GameState, Board as BoardType } from "../services/GameEngine";
 
 interface BoardProps {
     cells: BoardType
