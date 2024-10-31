@@ -34,6 +34,8 @@ export interface GameState {
         isEnemyAI: boolean // Tracks whether the enemy is AI
         gamePhase: GamePhase // Tracks phase of the game
         alert: string | null // Any error or success alerts
+        showWinnerModal: boolean
+        winner: PlayerRole | null
     },
     player1: PlayerState // Important that this key matches the Player
     player2: PlayerState
@@ -51,7 +53,6 @@ const alerts = {
     shipOverlapError: "Error placing ship -- overlapping with another ship.",
     attackPlacementError: "You already attacked this area.",
     playerRoleError: "Invalid attacking player role.",
-    winAlert: (player: PlayerRole) => `${player} Won!`,
 }
 
 // Utility function to initialize empty board
@@ -66,6 +67,8 @@ export const createInitialGameState = (isEnemyAI: boolean): GameState => ({
         gamePhase: "placement",
         isEnemyAI,
         alert: null,
+        showWinnerModal: false,
+        winner: null,
     },
     player1: {
         ships: {
@@ -208,12 +211,11 @@ export const handleAttack = (
                 const allShipsDestroyed = Object.values(defendingState.ships)
                     .every(isDestroyed)
                 if (allShipsDestroyed) {
-                    game.ctx.alert = alerts.winAlert(attackingPlayer)
-                    alert(game.ctx.alert)
                     game.ctx.gamePhase = "finished"
+                    game.ctx.showWinnerModal = true
+                    game.ctx.winner = attackingPlayer
 
                     const newPlayerState: PlayerState = defendingState;
-
 
                     return {
                         ...game,
