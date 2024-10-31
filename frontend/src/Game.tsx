@@ -1,5 +1,5 @@
 import { isEmpty } from "lodash";
-import { Board, CellIndex, useGameEngine } from "./GameEngine";
+import { type Board, CellIndex, GameState, useGameEngine } from "./GameEngine";
 
 const Game = () => {
     const { gameState, reset, attack, place } = useGameEngine()
@@ -51,6 +51,10 @@ const Game = () => {
         return "All ships placed - Ready for battle!"
     }
 
+    const handleRestart = () => {
+        reset()
+    }
+
     return (
         <div className="flex flex-col items-center p-8">
             <div className="mb-8 text-center">
@@ -91,6 +95,29 @@ const Game = () => {
                     />
                 </div>
             </div>
+
+            {gameState.ctx.showWinnerModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                    <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+                        <h2 className="text-2xl font-bold mb-4">🎉 Game Over! 🎉</h2>
+                        <p className="text-xl mb-6">{gameState.ctx.winner} Wins!</p>
+                        <div className="flex gap-4 justify-center">
+                            <button
+                                onClick={handleRestart}
+                                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                            >
+                                Play Again
+                            </button>
+                            <button
+                                onClick={() => window.location.href = '/'}
+                                className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
+                            >
+                                Back to Menu
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
@@ -102,7 +129,7 @@ const Board = ({ cells, onCellClick, title, gameState, isBattleActive }: {
     cells: Board,
     onCellClick: (index: number) => void,
     title: string,
-    gameState: any, // TODO: Add proper type for gameState
+    gameState: GameState,
     isBattleActive: boolean
 }) => {
     // Flatten the 2D board array into 1D for easier mapping
