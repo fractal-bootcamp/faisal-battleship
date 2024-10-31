@@ -1,21 +1,38 @@
 import { isEmpty } from "lodash";
-import { ShipName, useGameEngine, handleAiTurn, Direction } from "./services/GameEngine";
+import { ShipName, useGameEngine, handleAiTurn, Direction, placeShip } from "./services/GameEngine";
 import ShipStatus from "./components/ShipStatus";
 import { GameMode } from "./services/GameEngine";
 import { useEffect, useState } from "react";
 import { useNavigate } from 'react-router-dom';
 import Board from "./components/Board";
+import { socketEmitters, createSocketListeners } from "../src/services/SocketOnGameState";
+import { PlayerRole } from "../../shared/types/SocketEvents";
+
 
 interface GameProps {
     mode: GameMode
     player1Name: string
     player2Name: string
+    idSession?: string
 }
 
-const Game: React.FC<GameProps> = ({ mode, player1Name, player2Name }) => {
+const Game: React.FC<GameProps> = ({ mode, player1Name, player2Name, idSession }) => {
     const navigate = useNavigate();
-    const { gameState, setGameState, reset, attack, place } = useGameEngine(mode)
-    const [placementDirection, setPlacementDirection] = useState<Direction>("horizontal")
+    const { gameState, setGameState, reset, attack, place } = useGameEngine(mode);
+    const [placementDirection, setPlacementDirection] = useState<Direction>("horizontal");
+    const [playerRole, setPlayerRole] = useState<PlayerRole | null>(null);
+    const [opponentReady, setOpponentReady] = useState(false);
+
+    // Find next ship to place for each player
+    const currentPlacementForPlayer1 = Object.entries(gameState.player1.ships).find(([_, shipDetails]) => {
+        return isEmpty(shipDetails.location)
+    })?.[0] as ShipName | undefined;
+
+    const currentPlacementForPlayer2 = Object.entries(gameState.player2.ships).find(([_, shipDetails]) => {
+        return isEmpty(shipDetails.location)
+    })?.[0] as ShipName | undefined;
+
+    const isBattleActive = !currentPlacementForPlayer1 && !currentPlacementForPlayer2;
 
     // Add AI turn effect
     useEffect(() => {
@@ -31,46 +48,117 @@ const Game: React.FC<GameProps> = ({ mode, player1Name, player2Name }) => {
         }
     }, [gameState.ctx.currentPlayer, gameState.ctx.gamePhase])
 
-    const currentPlacementForPlayer1 = Object.entries(gameState.player1.ships).find(([_, shipDetails]) => {
-        return isEmpty(shipDetails.location)
-    })?.[0] as ShipName | undefined
+    // Initialize socket connection for multiplayer
+    useEffect(() => {
+        if (mode === "1vs1" && idSession) {
+            socketEmitters.joinSession({
+                idSession,
+                playerName: player1Name,
+            });
 
-    const currentPlacementForPlayer2 = Object.entries(gameState.player2.ships).find(([_, shipDetails]) => {
-        return isEmpty(shipDetails.location)
-    })?.[0] as ShipName | undefined
+            const cleanup = createSocketListeners({
+                onAssignRole: (role) => {
+                    setPlayerRole(role);
+                },
+                onOpponentPlacedShip: (payload) => {
+                    const { ship, direction, row, col } = payload;
+                    const index = row * 10 + col;
+                    const targetPlayer = payload.playerRole === PlayerRole.PLAYER1 ? "player1" : "player2";
 
-    const isBattleActive = !currentPlacementForPlayer1 && !currentPlacementForPlayer2;
+                    setGameState(prev => {
+                        const newState = placeShip(prev, targetPlayer, ship.name as ShipName, index, direction);
+                        return newState;
+                    });
+                },
+                onOpponentAttack: (payload) => {
+                    const index = payload.row * 10 + payload.col;
+                    attack(index);
+                },
+                onOpponentReady: () => {
+                    setOpponentReady(true);
+                }
+            });
+
+            return () => {
+                cleanup();
+                socketEmitters.leaveSession(idSession);
+            };
+        }
+    }, [mode, idSession]);
+
+    // Handle keyboard controls
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                setPlacementDirection("horizontal")
+            } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                setPlacementDirection("vertical")
+            }
+        }
+
+        if (!isBattleActive) {
+            window.addEventListener("keydown", handleKeyDown)
+            return () => window.removeEventListener("keydown", handleKeyDown)
+        }
+    }, [isBattleActive])
 
     const getOnBoardClick = (board: number) => (index: number) => {
-        const thisPlayer = board === 1 ? "player1" : "player2"
+        const thisPlayer = board === 1 ? "player1" : "player2";
+        const row = Math.floor(index / 10);
+        const col = index % 10;
 
         // During placement phase
         if (!isBattleActive) {
-            // Only allow placing ships on player1's board in AI mode
-            if (mode === "1vsAiMarine" && board === 2) {
-                return; // Disable clicks on AI board during placement
+            // Prevent placing on AI's board during placement
+            if (mode === "1vsAiMarine" && board === 2) return;
+
+            // Check if it's the player's board in multiplayer
+            if (mode === "1vs1" &&
+                ((playerRole === PlayerRole.PLAYER1 && board === 2) ||
+                    (playerRole === PlayerRole.PLAYER2 && board === 1))) {
+                return;
             }
 
-            // Allow placing ships on your own board
-            const currentPlacement = board === 1 ? currentPlacementForPlayer1 : currentPlacementForPlayer2
+            const currentPlacement = board === 1 ? currentPlacementForPlayer1 : currentPlacementForPlayer2;
             if (currentPlacement) {
-                place(thisPlayer, currentPlacement, index, placementDirection)
+                place(thisPlayer, currentPlacement, index, placementDirection);
+
+                // Emit ship placement in multiplayer mode
+                if (mode === "1vs1" && idSession && playerRole) {
+                    socketEmitters.placeShip({
+                        idSession,
+                        playerRole,
+                        row,
+                        col,
+                        ship: {
+                            name: currentPlacement,
+                            length: gameState[thisPlayer].ships[currentPlacement].length
+                        },
+                        direction: placementDirection
+                    });
+                }
             }
-            return
+            return;
         }
 
         // During battle phase
-        // Only allow attacking opponent's board
-        if (gameState.ctx.currentPlayer === "player1" && board === 2) {
-            // Player 1 can attack Player 2's board
-            attack(index)
-        } else if (gameState.ctx.currentPlayer === "player2" && board === 1) {
-            // Player 2 can attack Player 1's board
-            attack(index)
+        if (mode === "1vs1" && idSession && playerRole) {
+            // Allow attacks only on opponent's board
+            if ((playerRole === PlayerRole.PLAYER1 && board === 2) ||
+                (playerRole === PlayerRole.PLAYER2 && board === 1)) {
+                socketEmitters.attack({
+                    idSession,
+                    row,
+                    col,
+                    playerRole
+                });
+                attack(index);
+            }
+        } else if ((gameState.ctx.currentPlayer === "player1" && board === 2) ||
+            (gameState.ctx.currentPlayer === "player2" && board === 1)) {
+            attack(index);
         }
-    }
-
-
+    };
 
     const handleRestart = () => {
         reset()
@@ -101,6 +189,43 @@ const Game: React.FC<GameProps> = ({ mode, player1Name, player2Name }) => {
             return () => window.removeEventListener("keydown", handleKeyDown)
         }
     }, [isBattleActive]) // Dependency on battle state
+
+    const handleStartBattle = () => {
+        if (mode === "1vs1" && idSession && playerRole) {
+            socketEmitters.playerReady({
+                idSession,
+                playerRole
+            });
+
+            // Only transition to battle phase if opponent is also ready
+            if (opponentReady) {
+                setGameState(prev => ({
+                    ...prev,
+                    ctx: {
+                        ...prev.ctx,
+                        gamePhase: "battle"
+                    }
+                }));
+            }
+        } else {
+            // For AI mode, transition immediately
+            setGameState(prev => ({
+                ...prev,
+                ctx: {
+                    ...prev.ctx,
+                    gamePhase: "battle"
+                }
+            }));
+        }
+    };
+
+    // Auto-place AI ships when player1 finishes placement
+    useEffect(() => {
+        if (mode === "1vsAiMarine" && !currentPlacementForPlayer1 && gameState.ctx.gamePhase === "placement") {
+            const aiGameState = handleAiTurn(gameState);
+            setGameState(aiGameState);
+        }
+    }, [currentPlacementForPlayer1, gameState.ctx.gamePhase]);
 
     return (
         <div className="flex flex-col items-center p-8">
@@ -194,19 +319,46 @@ const Game: React.FC<GameProps> = ({ mode, player1Name, player2Name }) => {
                     <div className="font-semibold mb-1">
                         Current Direction: {placementDirection === "horizontal" ? "→ Horizontal" : "↓ Vertical"}
                     </div>
-                    <div className="flex justify-center gap-4">
-                        <button
-                            onClick={() => setPlacementDirection("horizontal")}
-                            className={`px-3 py-1 rounded ${placementDirection === "horizontal" ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-                        >
-                            Horizontal (←→)
-                        </button>
-                        <button
-                            onClick={() => setPlacementDirection("vertical")}
-                            className={`px-3 py-1 rounded ${placementDirection === "vertical" ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-                        >
-                            Vertical (↑↓)
-                        </button>
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="flex justify-center gap-4">
+                            <button
+                                onClick={() => setPlacementDirection("horizontal")}
+                                className={`px-3 py-1 rounded ${placementDirection === "horizontal" ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                            >
+                                Horizontal (←→)
+                            </button>
+                            <button
+                                onClick={() => setPlacementDirection("vertical")}
+                                className={`px-3 py-1 rounded ${placementDirection === "vertical" ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                            >
+                                Vertical (↑↓)
+                            </button>
+                        </div>
+
+                        {/* Add Start Battle button when all ships are placed */}
+                        {!currentPlacementForPlayer1 && (mode === "1vsAiMarine" || !currentPlacementForPlayer2) && (
+                            <div className="mt-4">
+                                {mode === "1vs1" && !opponentReady ? (
+                                    <div className="text-yellow-600 mb-2">
+                                        Waiting for opponent to finish placement...
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={handleStartBattle}
+                                        className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                                    >
+                                        Start Battle
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Show opponent ready status in multiplayer */}
+                        {mode === "1vs1" && opponentReady && !isBattleActive && (
+                            <div className="text-green-600 font-semibold">
+                                Opponent is ready!
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -232,7 +384,7 @@ const Game: React.FC<GameProps> = ({ mode, player1Name, player2Name }) => {
                                 onClick={() => window.location.href = '/'}
                                 className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
                             >
-                                Back to Menu
+                                Game Lobby
                             </button>
                         </div>
                     </div>
