@@ -107,8 +107,12 @@ const Game: React.FC<GameProps> = ({ mode, player1Name, player2Name }) => {
             {/* Game Header */}
             <div className="mb-8 text-center">
                 <h1 className="text-3xl font-bold mb-4">Battleship Game</h1>
-                {/* <div className="text-xl mb-2">Current Phase: {getGamePhaseMessage()}</div> */}
-                <div className="text-lg font-semibold">It's {gameState.ctx.currentPlayer}'s turn</div>
+                <div className="text-lg font-semibold">
+                    {gameState.ctx.currentPlayer === "player1"
+                        ? player1Name
+                        : (mode === "1vsAiMarine" ? "AI" : player2Name)
+                    }'s turn
+                </div>
             </div>
 
             {/* Buttons Container */}
@@ -143,9 +147,10 @@ const Game: React.FC<GameProps> = ({ mode, player1Name, player2Name }) => {
                                 <Board
                                     cells={gameState.player1.board}
                                     onCellClick={getOnBoardClick(1)}
-                                    title={mode === "1vsAiMarine" ? "My Board" : "Player 1's Board"}
+                                    title={`${player1Name}'s Board`}
                                     gameState={gameState}
                                     isBattleActive={isBattleActive}
+                                    isOpponentBoard={gameState.ctx.currentPlayer === "player2"}
                                 />
                             </div>
                         </div>
@@ -158,11 +163,12 @@ const Game: React.FC<GameProps> = ({ mode, player1Name, player2Name }) => {
                                 <Board
                                     cells={gameState.player2.board}
                                     onCellClick={getOnBoardClick(2)}
-                                    title={mode === "1vsAiMarine" ? "AI Board" : "Player 2's Board"}
+                                    title={mode === "1vsAiMarine" ? "AI's Board" : `${player2Name}'s Board`}
                                     gameState={gameState}
                                     isBattleActive={isBattleActive}
                                     isDisabled={mode === "1vsAiMarine" && !isBattleActive}
                                     isAiBoard={mode === "1vsAiMarine"}
+                                    isOpponentBoard={gameState.ctx.currentPlayer === "player1"}
                                     className={`${mode === "1vsAiMarine" && !isBattleActive ? 'opacity-50' : ''}`}
                                 />
                                 <ShipStatus
@@ -210,10 +216,10 @@ const Game: React.FC<GameProps> = ({ mode, player1Name, player2Name }) => {
                     <div className="bg-white p-8 rounded-lg shadow-lg text-center">
                         <h2 className="text-2xl font-bold mb-4">🎉 Game Over! 🎉</h2>
                         <p className="text-xl mb-6">
-                            {/* Show "AI" instead of "player2" when in AI mode */}
-                            {mode === "1vsAiMarine" && gameState.ctx.winner === "player2"
-                                ? "AI Wins!"
-                                : `${gameState.ctx.winner} Wins!`}
+                            {gameState.ctx.winner === "player1"
+                                ? `${player1Name} Wins!`
+                                : (mode === "1vsAiMarine" ? "AI Wins!" : `${player2Name} Wins!`)
+                            }
                         </p>
                         <div className="flex gap-4 justify-center">
                             <button
