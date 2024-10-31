@@ -54,7 +54,7 @@ const ShipStatus = ({ ships, isPlayer2, isBattleActive }: ShipStatusProps) => {
     }
 
     return (
-        <div className={`${currentScheme.container} p-4 rounded-lg shadow-md w-64 border border-gray-200`}>
+        <div className={`${currentScheme.container} p-4 mt-11 shadow-md w-64 h-fit border border-gray-200`}>
             <h3 className="text-lg font-bold mb-3 text-center">
                 Navy Fleet
             </h3>

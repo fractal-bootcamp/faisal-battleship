@@ -6,6 +6,19 @@ import RootLayout from '../src/RootLayout'
 import Game from './Game'
 import StartPage from './components/StartPage'
 import './index.css'
+import { useGame } from './contexts/GameContext';
+
+const GameWrapper = () => {
+  const { player1Name, player2Name, mode } = useGame();
+
+  return (
+    <Game
+      mode={mode}
+      player1Name={player1Name || ''}
+      player2Name={mode === "1vsAiMarine" ? "AI" : (player2Name || '')}
+    />
+  );
+}
 
 const router = createBrowserRouter([
   {
@@ -18,11 +31,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'game/:idSession',
-        element: <Game
-          mode="1vsAiMarine"
-          player1Name="Player 1"
-          player2Name="Player 2"
-        />
+        element: <GameWrapper />
       }
     ]
   }

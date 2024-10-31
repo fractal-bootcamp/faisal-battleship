@@ -9,6 +9,7 @@ interface BoardProps {
     isDisabled?: boolean
     className?: string
     isAiBoard?: boolean
+    isOpponentBoard?: boolean
 }
 
 const Board: React.FC<BoardProps> = ({
@@ -19,7 +20,8 @@ const Board: React.FC<BoardProps> = ({
     isBattleActive,
     isDisabled: forceDisabled,
     className,
-    isAiBoard
+    isAiBoard = false,
+    isOpponentBoard = false
 }) => {
     // Determine if this is player1's board
     const isPlayer1Board = title.toLowerCase().includes("player 1") || title.toLowerCase().includes("my board")
@@ -38,8 +40,9 @@ const Board: React.FC<BoardProps> = ({
     const getCellStyle = (value: Cell) => {
         const baseStyle = "w-10 h-10 flex items-center justify-center transition-colors duration-200 text-xl"
 
-        // Hide AI ships during placement phase
-        if (isAiBoard && !isBattleActive && value === "🚢") {
+        // Hide ships on opponent's board or AI board during placement
+        if ((isOpponentBoard && value === "🚢") ||
+            (isAiBoard && !isBattleActive && value === "🚢")) {
             return `${baseStyle} bg-white hover:bg-gray-100`
         }
 
@@ -61,18 +64,20 @@ const Board: React.FC<BoardProps> = ({
                 {isAiBoard && !isBattleActive ? "AI Board" : title}
             </h2>
             <div
-                className={`grid grid-cols-10 gap-1 ${isDisabled ? 'opacity-60' : ''
-                    } ${className || ''}`}
+                className={`grid grid-cols-10 gap-1 ${isDisabled ? 'opacity-60' : ''} ${className || ''}`}
             >
                 {cells.flat().map((value, index) => (
                     <div
                         key={index}
                         onClick={() => !isDisabled && onCellClick(index)}
-                        className={`w-10 h-10 border border-gray-300 
-                            ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                        className={`w-10 h-10 border border-gray-300 ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                     >
                         <div className={getCellStyle(value)}>
-                            {isAiBoard && value === "🚢" && !isBattleActive ? "" : value}
+                            {/* Hide ship emoji on opponent's board or AI board during placement */}
+                            {(isOpponentBoard && value === "🚢") ||
+                                (isAiBoard && !isBattleActive && value === "🚢")
+                                ? ""
+                                : value}
                         </div>
                     </div>
                 ))}

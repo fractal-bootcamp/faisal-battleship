@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { GameMode } from "../GameEngine"
 import { useGame } from "../contexts/GameContext"
 
@@ -7,6 +7,19 @@ const StartPage = () => {
     const [player1Name, setPlayer1Name] = useState<string>("")
     const [player2Name, setPlayer2Name] = useState<string>("")
     const [mode, setMode] = useState<GameMode>("1vsAiMarine")
+    const [alert, setAlert] = useState<string | null>(null)
+
+    // Clear alert after timeout
+    useEffect(() => {
+        if (alert) {
+            const timeoutId = setTimeout(() => {
+                setAlert(null)
+            }, 3000) // 3 seconds timeout
+
+            // Cleanup timeout on component unmount or when alert changes
+            return () => clearTimeout(timeoutId)
+        }
+    }, [alert])
 
     // handle gamestart logic 
     const handleGameStart = () => {
@@ -15,7 +28,7 @@ const StartPage = () => {
         } else if (mode === "1vsAiMarine" && player1Name) {
             startGame(player1Name, "AI Marine", mode)
         } else {
-            alert("Please fill out all the required field!")
+            setAlert("Please fill out all the required fields!")
         }
     }
 
@@ -24,6 +37,17 @@ const StartPage = () => {
             <h1 className="text-4xl font-bold mb-8 text-center">
                 Battleship 🚢
             </h1>
+
+            {/* Alert Message with fade-out animation */}
+            {alert && (
+                <div
+                    className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded w-full text-center transition-opacity duration-300"
+                    role="alert"
+                >
+                    <p>{alert}</p>
+                </div>
+            )}
+
             <div className="mb-4 w-full">
                 <label htmlFor="player1Name" className="block text-lg font-semibold mb-2">
                     Player 1:
