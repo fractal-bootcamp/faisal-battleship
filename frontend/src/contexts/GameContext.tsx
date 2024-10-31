@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from "react"
-import { GameMode } from "../GameEngine"
+import { GameMode } from "../services/GameEngine"
 import { v4 as uuidv4 } from "uuid"
 import { useNavigate } from "react-router-dom"
 

@@ -15,7 +15,7 @@ import {
     handleAttack,
     handleAiTurn,
     resetGame
-} from "../GameEngine"
+} from "../services/GameEngine"
 
 interface GamePageProps {
     player1Name: string

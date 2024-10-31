@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { GameMode } from "../GameEngine"
+import { GameMode } from "../services/GameEngine"
 import { useGame } from "../contexts/GameContext"
 
 const StartPage = () => {

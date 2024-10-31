@@ -1,4 +1,4 @@
-import { ShipDetails } from "../GameEngine"
+import { ShipDetails } from "../services/GameEngine"
 
 interface ShipStatusProps {
     ships: Record<string, ShipDetails>
