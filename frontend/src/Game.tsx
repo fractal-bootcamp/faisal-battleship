@@ -1,16 +1,17 @@
 import { isEmpty } from "lodash";
-import { type Board, CellIndex, GameState, useGameEngine } from "./GameEngine";
+import { type Board, Cell, CellIndex, GameState, ShipName, useGameEngine } from "./GameEngine";
+import ShipStatus from "./components/ShipStatus";
 
 const Game = () => {
     const { gameState, reset, attack, place } = useGameEngine()
 
-    const currentPlacementForPlayer1 = Object.values(gameState.player1.ships).find((shipDetails) => {
+    const currentPlacementForPlayer1 = Object.entries(gameState.player1.ships).find(([_, shipDetails]) => {
         return isEmpty(shipDetails.location)
-    })?.name
+    })?.[0] as ShipName | undefined
 
-    const currentPlacementForPlayer2 = Object.values(gameState.player2.ships).find((ship) => {
-        return isEmpty(ship.location)
-    })?.name
+    const currentPlacementForPlayer2 = Object.entries(gameState.player2.ships).find(([_, shipDetails]) => {
+        return isEmpty(shipDetails.location)
+    })?.[0] as ShipName | undefined
 
     const isBattleActive = !currentPlacementForPlayer1 && !currentPlacementForPlayer2;
 
@@ -57,12 +58,14 @@ const Game = () => {
 
     return (
         <div className="flex flex-col items-center p-8">
+            {/* Game Header */}
             <div className="mb-8 text-center">
                 <h1 className="text-3xl font-bold mb-4">Battleship Game</h1>
-                <div className="text-xl mb-2">Current Placement: {getGamePhaseMessage()}</div>
+                {/* <div className="text-xl mb-2">Current Phase: {getGamePhaseMessage()}</div> */}
                 <div className="text-lg font-semibold">It's {gameState.ctx.currentPlayer}'s turn</div>
             </div>
 
+            {/* Reset Button */}
             <div className="mb-6">
                 <button
                     onClick={reset}
@@ -72,28 +75,63 @@ const Game = () => {
                 </button>
             </div>
 
-            <div className="flex justify-center gap-8">
-                <div className="flex flex-col items-center">
-                    <h2 className="text-xl font-bold mb-4">Player 1's Board</h2>
-                    <Board
-                        cells={gameState.player1.board}
-                        onCellClick={getOnBoardClick(1)}
-                        title="Player 1"
-                        gameState={gameState}
-                        isBattleActive={isBattleActive}
-                    />
+            {/* Game Boards Container */}
+            <div className="flex flex-col items-center">
+                {/* Boards */}
+                <div className="flex justify-center gap-8 mb-4">
+                    {/* Player 1's section */}
+                    <div className="flex flex-col items-center gap-4">
+                        <h2 className="text-xl font-bold mb-4">
+                            {gameState.ctx.currentPlayer === "player1" ? "My Board" : "Enemy Board"}
+                        </h2>
+                        <div className="bg-blue-50 p-6 rounded-lg border-2 border-blue-200">
+                            <div className="flex gap-4">
+                                <ShipStatus
+                                    ships={gameState.player1.ships}
+                                    isPlayer2={false}
+                                    isBattleActive={isBattleActive}
+                                />
+                                <Board
+                                    cells={gameState.player1.board}
+                                    onCellClick={getOnBoardClick(1)}
+                                    title="Player 1"
+                                    gameState={gameState}
+                                    isBattleActive={isBattleActive}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Player 2's section */}
+                    <div className="flex flex-col items-center gap-4">
+                        <h2 className="text-xl font-bold mb-4">
+                            {gameState.ctx.currentPlayer === "player1" ? "Enemy Board" : "My Board"}
+                        </h2>
+                        <div className="bg-amber-50 p-6 rounded-lg border-2 border-amber-200">
+                            <div className="flex gap-4">
+                                <Board
+                                    cells={gameState.player2.board}
+                                    onCellClick={getOnBoardClick(2)}
+                                    title="Player 2"
+                                    gameState={gameState}
+                                    isBattleActive={isBattleActive}
+                                />
+                                <ShipStatus
+                                    ships={gameState.player2.ships}
+                                    isPlayer2={true}
+                                    isBattleActive={isBattleActive}
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div className="flex flex-col items-center">
-                    <h2 className="text-xl font-bold mb-4">Player 2's Board</h2>
-                    <Board
-                        cells={gameState.player2.board}
-                        onCellClick={getOnBoardClick(2)}
-                        title="Player 2"
-                        gameState={gameState}
-                        isBattleActive={isBattleActive}
-                    />
-                </div>
+                {/* Alert Message under boards */}
+                {gameState.ctx.alert && (
+                    <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mt-4 rounded w-full max-w-2xl text-center" role="alert">
+                        <p>{gameState.ctx.alert}</p>
+                    </div>
+                )}
             </div>
 
             {gameState.ctx.showWinnerModal && (
@@ -132,8 +170,21 @@ const Board = ({ cells, onCellClick, title, gameState, isBattleActive }: {
     gameState: GameState,
     isBattleActive: boolean
 }) => {
-    // Flatten the 2D board array into 1D for easier mapping
-    const board = cells.flat()
+    // Function to get cell style based on its state
+    const getCellStyle = (value: Cell) => {
+        const baseStyle = "w-full h-full flex items-center justify-center transition-colors duration-200"
+
+        switch (value) {
+            case "💥":
+                return `${baseStyle} bg-red-200 hover:bg-red-300`
+            case "👻":
+                return `${baseStyle} bg-gray-200 hover:bg-gray-300`
+            case "🚢":
+                return `${baseStyle} bg-blue-200 hover:bg-blue-300`
+            default:
+                return `${baseStyle} bg-white hover:bg-gray-100`
+        }
+    }
 
     // Check if this board belongs to the current player
     const isCurrentPlayerBoard = title === `Player ${gameState.ctx.currentPlayer === "player1" ? "1" : "2"}`
@@ -143,17 +194,16 @@ const Board = ({ cells, onCellClick, title, gameState, isBattleActive }: {
 
     return (
         <div className="grid grid-cols-10 gap-1 w-96 h-96">
-            {board.map((value, index) => (
+            {cells.flat().map((value, index) => (
                 <div
                     key={index}
                     onClick={() => !isDisabled && onCellClick(index)}
-                    className={`border border-gray-300 flex items-center justify-center
-                        ${isDisabled
-                            ? 'cursor-not-allowed bg-gray-100'
-                            : 'cursor-pointer bg-white hover:bg-gray-100'
-                        }`}
+                    className={`border border-gray-300 
+                        ${isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                 >
-                    {value}
+                    <div className={getCellStyle(value)}>
+                        {value}
+                    </div>
                 </div>
             ))}
         </div>

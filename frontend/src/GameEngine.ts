@@ -49,10 +49,10 @@ export interface PlayerState {
 }
 
 const alerts = {
-    shipPlacementError: "Error placing ship -- ship would be placed out of bounds.",
-    shipOverlapError: "Error placing ship -- overlapping with another ship.",
-    attackPlacementError: "You already attacked this area.",
-    playerRoleError: "Invalid attacking player role.",
+    shipPlacementError: "Ship placement out of bounds! Try a different location.",
+    shipOverlapError: "Ships cannot overlap! Choose a different spot.",
+    attackPlacementError: "This area has already been attacked! Try somewhere else.",
+    playerRoleError: "Invalid player turn.",
 }
 
 // Utility function to initialize empty board
@@ -102,11 +102,15 @@ export const placeShip = (
     shipName: ShipName,
     placementLocation: CellIndex
 ): GameState => {
+    const game = structuredClone(prevGame)
+
+    // Clear previous alert
+    game.ctx.alert = null
+
     if (player !== "player1" && player !== "player2") {
         return prevGame // Ensure player is valid before proceeding
     }
 
-    const game = structuredClone(prevGame) // create a deep copy of the previous game state so we don't modify it in place.
     const playerState = game[player]
     const ship = playerState.ships[shipName]
 
@@ -170,56 +174,45 @@ export const handleAttack = (
     targetCell: CellIndex
 ): GameState => {
     const game = structuredClone(gameState)
+
+    // Clear previous alert
+    game.ctx.alert = null
+
     if (attackingPlayer !== "player1" && attackingPlayer !== "player2") {
         game.ctx.alert = alerts.playerRoleError
-        console.warn(game.ctx.alert)
-        return gameState // Ensure player is valid before proceeding
-    }
-
-    const defendingPlayer = attackingPlayer === "player1" ? "player2" : "player1" // Determine defending player
-    const defendingState = game[defendingPlayer] // Get defending player's state
-    const attackingState = game[attackingPlayer] // Get defending player's state
-
-    // Calculate board size
-    const boardSize = Math.sqrt(game.ctx.boardSize)
-
-    console.log(attackingState.board, targetCell)
-
-    // currentValueOfTargetCell
-    const cVOTC = defendingState.board[Math.floor(targetCell / boardSize)][targetCell % boardSize];
-
-    // Prevent attacking same cell twice
-    // @TODO: review
-    if (["💥", "👻"].includes(cVOTC)) {
-        game.ctx.alert = alerts.attackPlacementError
-        console.warn(game.ctx.alert)
         return game
     }
 
-    // Determine if the shot is a hit
+    const defendingPlayer = attackingPlayer === "player1" ? "player2" : "player1"
+    const defendingState = game[defendingPlayer]
+    const boardSize = Math.sqrt(game.ctx.boardSize)
+
+    // Get current value of target cell
+    const cVOTC = defendingState.board[Math.floor(targetCell / boardSize)][targetCell % boardSize];
+
+    // Prevent attacking same cell twice with better error message
+    if (["💥", "👻"].includes(cVOTC)) {
+        game.ctx.alert = alerts.attackPlacementError
+        return game
+    }
+
+    // Rest of the attack logic remains the same
     let hit = false
     for (const ship of Object.values(defendingState.ships)) {
-        console.log(ship)
         if (ship.location && ship.location[targetCell] === "🚢") {
-            console.log("hit")
             hit = true
             ship.location[targetCell] = "💥"
             defendingState.board[Math.floor(targetCell / boardSize)][targetCell % boardSize] = "💥"
 
             if (isDestroyed(ship)) {
-                // Check if all ships are destroyed
-                const allShipsDestroyed = Object.values(defendingState.ships)
-                    .every(isDestroyed)
+                const allShipsDestroyed = Object.values(defendingState.ships).every(isDestroyed)
                 if (allShipsDestroyed) {
                     game.ctx.gamePhase = "finished"
                     game.ctx.showWinnerModal = true
                     game.ctx.winner = attackingPlayer
-
-                    const newPlayerState: PlayerState = defendingState;
-
                     return {
                         ...game,
-                        [defendingPlayer]: newPlayerState
+                        [defendingPlayer]: defendingState
                     }
                 }
             }
@@ -227,19 +220,14 @@ export const handleAttack = (
         }
     }
 
-    // Mark the attack on enemy board if its a hit or miss
-    defendingState.board[Math.floor(targetCell / boardSize)][targetCell % boardSize] =
-        hit ? "💥" : "👻"
-
-    // Track shot history
+    // Mark the attack on enemy board
+    defendingState.board[Math.floor(targetCell / boardSize)][targetCell % boardSize] = hit ? "💥" : "👻"
     game[attackingPlayer].myShots.push(targetCell)
 
-    // If hit, player gets another shot; if miss, switch turns
+    // Switch turns if it's a miss
     if (!hit) {
         game.ctx.currentPlayer = defendingPlayer
     }
-
-    console.log("no hits", defendingState)
 
     return {
         ...game,
