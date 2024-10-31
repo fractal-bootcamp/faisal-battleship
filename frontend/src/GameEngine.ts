@@ -243,10 +243,10 @@ export const handleAiTurn = (gameState: GameState): GameState => {
     // Calculate board size
     const boardSize = Math.sqrt(game.ctx.boardSize)
 
-    // AI selects a random target that hasn't been attacked
+    // AI selects a random target that hasn't been attacked on player1's board
     do {
         targetCell = Math.floor(Math.random() * boardSize * boardSize)
-    } while (game.player2.board[Math.floor(targetCell / boardSize)][targetCell % boardSize] !== "")
+    } while (game.player1.board[Math.floor(targetCell / boardSize)][targetCell % boardSize] !== "")
 
     return handleAttack(game, "player2", targetCell)
 }
@@ -255,8 +255,8 @@ export const resetGame = (isEnemyAI: boolean): GameState => {
     return createInitialGameState(isEnemyAI)
 }
 
-export const useGameEngine = () => {
-    const isAI = true
+export const useGameEngine = (mode: GameMode = "1vsAiMarine") => {
+    const isAI = mode === "1vsAiMarine"
     const [gameState, setGameState] = useState(createInitialGameState(isAI))
 
     const reset = () => {
@@ -276,6 +276,5 @@ export const useGameEngine = () => {
         setGameState(newGameState)
     }
 
-
-    return { gameState, reset, attack, place }
+    return { gameState, setGameState, reset, attack, place }
 }

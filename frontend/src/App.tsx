@@ -4,11 +4,12 @@ import { GameMode } from "./GameEngine"
 import { v4 as uuidv4 } from "uuid"
 import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom"
 import "./index.css"
+import Game from "./Game"
 
 const App: React.FC = () => {
   const [player1Name, setPlayer1Name] = useState<string>("")
   const [player2Name, setPlayer2Name] = useState<string | null>(null)
-  const [mode, setmode] = useState<GameMode>("1vsAiMarine")
+  const [mode, setMode] = useState<GameMode>("1vsAiMarine")
   const [sessionId, setSessionId] = useState<string | null>(null)
 
   const navigate = useNavigate()
@@ -21,8 +22,7 @@ const App: React.FC = () => {
   ) => {
     setPlayer1Name(player1)
     setPlayer2Name(player2)
-    setmode(selectedMode)
-    // Generate a unique session ID for the game
+    setMode(selectedMode)
     const id = uuidv4()
     setSessionId(id)
   }
@@ -39,19 +39,18 @@ const App: React.FC = () => {
       {/* Start page route */}
       <Route
         path="/"
-        element={<StartPage OnGameStart={startGame}
-        />}
+        element={<StartPage OnGameStart={startGame} />}
       />
 
       {/* Game page route with session Id */}
-      {/* <Route
+      <Route
         path="/game/:idSession"
         element={<Game
-          player1Name={player1Name} 
+          player1Name={player1Name}
           player2Name={player2Name || ""}
           mode={mode}
         />}
-      /> */}
+      />
     </Routes>
   )
 }
