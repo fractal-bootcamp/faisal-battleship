@@ -1,8 +1,8 @@
 import { isEmpty } from "lodash";
-import { ShipName, useGameEngine, handleAiTurn, placeShip } from "./GameEngine";
+import { ShipName, useGameEngine, handleAiTurn, placeShip, Direction } from "./GameEngine";
 import ShipStatus from "./components/ShipStatus";
 import { GameMode } from "./GameEngine";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from 'react-router-dom';
 import Board from "./components/Board";
 
@@ -15,6 +15,7 @@ interface GameProps {
 const Game: React.FC<GameProps> = ({ mode, player1Name, player2Name }) => {
     const navigate = useNavigate();
     const { gameState, setGameState, reset, attack, place } = useGameEngine(mode)
+    const [placementDirection, setPlacementDirection] = useState<Direction>("horizontal")
 
     // Add AI turn effect
     useEffect(() => {
@@ -53,7 +54,7 @@ const Game: React.FC<GameProps> = ({ mode, player1Name, player2Name }) => {
             // Allow placing ships on your own board
             const currentPlacement = board === 1 ? currentPlacementForPlayer1 : currentPlacementForPlayer2
             if (currentPlacement) {
-                place(thisPlayer, currentPlacement, index)
+                place(thisPlayer, currentPlacement, index, placementDirection)
             }
             return
         }
@@ -77,22 +78,29 @@ const Game: React.FC<GameProps> = ({ mode, player1Name, player2Name }) => {
 
     // Auto-place AI ships when player1 finishes placement
     useEffect(() => {
-        if (mode === "1vsAiMarine" && !currentPlacementForPlayer1 && currentPlacementForPlayer2) {
+        if (mode === "1vsAiMarine" && gameState.ctx.currentPlayer === "player2" && gameState.ctx.gamePhase === "battle") {
             // Place AI ships automatically
-            const ships = Object.keys(gameState.player2.ships) as ShipName[];
-            ships.forEach(shipName => {
-                let placed = false;
-                while (!placed) {
-                    const randomIndex = Math.floor(Math.random() * gameState.ctx.boardSize);
-                    const newGameState = placeShip(gameState, "player2", shipName, randomIndex);
-                    if (newGameState.ctx.alert === null) {
-                        setGameState(newGameState);
-                        placed = true;
-                    }
-                }
-            });
+            const aiGameState = handleAiTurn(gameState)
+            setGameState(aiGameState)
         }
-    }, [currentPlacementForPlayer1]);
+    }, [currentPlacementForPlayer1, gameState.ctx.gamePhase]);
+
+    useEffect(() => {
+        // Handle keyboard events for ship direction
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                setPlacementDirection("horizontal")
+            } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                setPlacementDirection("vertical")
+            }
+        }
+
+        // Only add the event listener during placement phase
+        if (!isBattleActive) {
+            window.addEventListener("keydown", handleKeyDown)
+            return () => window.removeEventListener("keydown", handleKeyDown)
+        }
+    }, [isBattleActive]) // Dependency on battle state
 
     return (
         <div className="flex flex-col items-center p-8">
@@ -174,6 +182,28 @@ const Game: React.FC<GameProps> = ({ mode, player1Name, player2Name }) => {
                     </div>
                 )}
             </div>
+
+            {!isBattleActive && (
+                <div className="text-sm text-gray-600 mb-2 text-center">
+                    <div className="font-semibold mb-1">
+                        Current Direction: {placementDirection === "horizontal" ? "→ Horizontal" : "↓ Vertical"}
+                    </div>
+                    <div className="flex justify-center gap-4">
+                        <button
+                            onClick={() => setPlacementDirection("horizontal")}
+                            className={`px-3 py-1 rounded ${placementDirection === "horizontal" ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                        >
+                            Horizontal (←→)
+                        </button>
+                        <button
+                            onClick={() => setPlacementDirection("vertical")}
+                            className={`px-3 py-1 rounded ${placementDirection === "vertical" ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                        >
+                            Vertical (↑↓)
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {gameState.ctx.showWinnerModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">

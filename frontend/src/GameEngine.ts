@@ -100,7 +100,8 @@ export const placeShip = (
     prevGame: GameState,
     player: PlayerRole,
     shipName: ShipName,
-    placementLocation: CellIndex
+    placementLocation: CellIndex,
+    direction: Direction = "horizontal"
 ): GameState => {
     const game = structuredClone(prevGame)
 
@@ -109,6 +110,11 @@ export const placeShip = (
 
     if (player !== "player1" && player !== "player2") {
         return prevGame // Ensure player is valid before proceeding
+    }
+
+    // Update the ship's direction before placement
+    if (player === "player1" || player === "player2") {
+        game[player].ships[shipName].direction = direction
     }
 
     const playerState = game[player]
@@ -263,30 +269,47 @@ export const handleAiTurn = (gameState: GameState): GameState => {
         }))
     ).filter(({ cell }) => cell === "💥")
 
+    let targetCell: number | undefined
+
     // If we have hits, try to find adjacent cells to target
     if (hitCells.length > 0) {
         for (const hit of hitCells) {
             const adjacentCells = getValidAdjacentCells(hit.row, hit.col)
             if (adjacentCells.length > 0) {
                 const target = adjacentCells[Math.floor(Math.random() * adjacentCells.length)]
-                return handleAttack(game, "player2", target.row * boardSize + target.col)
+                targetCell = target.row * boardSize + target.col
+                break
             }
         }
     }
 
-    // If no hits or no valid adjacent cells, pick a random cell that hasn't been targeted
-    const availableCells = game.player1.board.flatMap((row, rowIndex) =>
-        row.map((cell, colIndex) => ({
-            row: rowIndex,
-            col: colIndex,
-            cell
-        }))
-    ).filter(({ cell }) => !["💥", "👻"].includes(cell))
+    // If no hits or no valid adjacent cells, pick a random cell
+    if (targetCell === undefined) {
+        const availableCells = game.player1.board.flatMap((row, rowIndex) =>
+            row.map((cell, colIndex) => ({
+                row: rowIndex,
+                col: colIndex,
+                cell
+            }))
+        ).filter(({ cell }) => !["💥", "👻"].includes(cell))
 
-    if (availableCells.length === 0) return game // No valid moves left
+        if (availableCells.length === 0) return game // No valid moves left
 
-    const randomCell = availableCells[Math.floor(Math.random() * availableCells.length)]
-    return handleAttack(game, "player2", randomCell.row * boardSize + randomCell.col)
+        const randomCell = availableCells[Math.floor(Math.random() * availableCells.length)]
+        targetCell = randomCell.row * boardSize + randomCell.col
+    }
+
+    // Make the attack
+    const newGameState = handleAttack(game, "player2", targetCell)
+
+    // Keep AI's turn if it was a hit
+    if (newGameState.player1.board[Math.floor(targetCell / boardSize)][targetCell % boardSize] === "💥") {
+        newGameState.ctx.currentPlayer = "player2"
+    } else {
+        newGameState.ctx.currentPlayer = "player1"
+    }
+
+    return newGameState
 }
 
 export const resetGame = (isEnemyAI: boolean): GameState => {
@@ -316,8 +339,8 @@ export const useGameEngine = (mode: GameMode = "1vsAiMarine") => {
         setGameState(newGameState);
     }
 
-    const place = (player: PlayerRole, shipName: ShipName, placementLocation: CellIndex) => {
-        const newGameState = placeShip(gameState, player, shipName, placementLocation);
+    const place = (player: PlayerRole, shipName: ShipName, placementLocation: CellIndex, direction: Direction) => {
+        const newGameState = placeShip(gameState, player, shipName, placementLocation, direction);
 
         // If in AI mode and player1 finished placing ships, place AI ships
         if (isAI && player === "player1" && isPlayer1FinishedPlacing(newGameState)) {
@@ -328,7 +351,7 @@ export const useGameEngine = (mode: GameMode = "1vsAiMarine") => {
                 let placed = false;
                 while (!placed) {
                     const randomIndex = Math.floor(Math.random() * aiGameState.ctx.boardSize);
-                    const attemptState = placeShip(aiGameState, "player2", aiShipName, randomIndex);
+                    const attemptState = placeShip(aiGameState, "player2", aiShipName, randomIndex, direction);
                     if (attemptState.ctx.alert === null) {
                         aiGameState = attemptState;
                         placed = true;
