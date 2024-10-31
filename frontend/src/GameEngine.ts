@@ -237,18 +237,56 @@ export const handleAttack = (
 
 // Handle Ai attack
 export const handleAiTurn = (gameState: GameState): GameState => {
-    let targetCell: CellIndex
     const game = structuredClone(gameState)
-
-    // Calculate board size
     const boardSize = Math.sqrt(game.ctx.boardSize)
 
-    // AI selects a random target that hasn't been attacked on player1's board
-    do {
-        targetCell = Math.floor(Math.random() * boardSize * boardSize)
-    } while (game.player1.board[Math.floor(targetCell / boardSize)][targetCell % boardSize] !== "")
+    // Helper function to get valid adjacent cells
+    const getValidAdjacentCells = (row: number, col: number) => {
+        return [
+            { row: row - 1, col }, // up
+            { row: row + 1, col }, // down
+            { row, col: col - 1 }, // left
+            { row, col: col + 1 }, // right
+        ].filter(({ row, col }) =>
+            row >= 0 && row < boardSize &&
+            col >= 0 && col < boardSize &&
+            !["💥", "👻"].includes(game.player1.board[row][col])
+        )
+    }
 
-    return handleAttack(game, "player2", targetCell)
+    // Find all hit cells that might be part of a ship
+    const hitCells = game.player1.board.flatMap((row, rowIndex) =>
+        row.map((cell, colIndex) => ({
+            row: rowIndex,
+            col: colIndex,
+            cell
+        }))
+    ).filter(({ cell }) => cell === "💥")
+
+    // If we have hits, try to find adjacent cells to target
+    if (hitCells.length > 0) {
+        for (const hit of hitCells) {
+            const adjacentCells = getValidAdjacentCells(hit.row, hit.col)
+            if (adjacentCells.length > 0) {
+                const target = adjacentCells[Math.floor(Math.random() * adjacentCells.length)]
+                return handleAttack(game, "player2", target.row * boardSize + target.col)
+            }
+        }
+    }
+
+    // If no hits or no valid adjacent cells, pick a random cell that hasn't been targeted
+    const availableCells = game.player1.board.flatMap((row, rowIndex) =>
+        row.map((cell, colIndex) => ({
+            row: rowIndex,
+            col: colIndex,
+            cell
+        }))
+    ).filter(({ cell }) => !["💥", "👻"].includes(cell))
+
+    if (availableCells.length === 0) return game // No valid moves left
+
+    const randomCell = availableCells[Math.floor(Math.random() * availableCells.length)]
+    return handleAttack(game, "player2", randomCell.row * boardSize + randomCell.col)
 }
 
 export const resetGame = (isEnemyAI: boolean): GameState => {
@@ -268,12 +306,46 @@ export const useGameEngine = (mode: GameMode = "1vsAiMarine") => {
     const attack = (targetCell: CellIndex) => {
         const newGameState = handleAttack(gameState, gameState.ctx.currentPlayer, targetCell);
 
-        setGameState(newGameState)
+        // If in AI mode and it's AI's turn, trigger AI attack
+        if (isAI && newGameState.ctx.currentPlayer === "player2") {
+            const aiGameState = handleAiTurn(newGameState);
+            setGameState(aiGameState);
+            return;
+        }
+
+        setGameState(newGameState);
     }
 
     const place = (player: PlayerRole, shipName: ShipName, placementLocation: CellIndex) => {
-        const newGameState = placeShip(gameState, player, shipName, placementLocation)
-        setGameState(newGameState)
+        const newGameState = placeShip(gameState, player, shipName, placementLocation);
+
+        // If in AI mode and player1 finished placing ships, place AI ships
+        if (isAI && player === "player1" && isPlayer1FinishedPlacing(newGameState)) {
+            let aiGameState = structuredClone(newGameState);
+            const ships = Object.keys(aiGameState.player2.ships) as ShipName[];
+
+            ships.forEach(aiShipName => {
+                let placed = false;
+                while (!placed) {
+                    const randomIndex = Math.floor(Math.random() * aiGameState.ctx.boardSize);
+                    const attemptState = placeShip(aiGameState, "player2", aiShipName, randomIndex);
+                    if (attemptState.ctx.alert === null) {
+                        aiGameState = attemptState;
+                        placed = true;
+                    }
+                }
+            });
+
+            setGameState(aiGameState);
+            return;
+        }
+
+        setGameState(newGameState);
+    }
+
+    // Helper function to check if player1 finished placing ships
+    const isPlayer1FinishedPlacing = (gameState: GameState): boolean => {
+        return Object.values(gameState.player1.ships).every(ship => !isEmpty(ship.location));
     }
 
     return { gameState, setGameState, reset, attack, place }
