@@ -6,7 +6,7 @@ export type GamePhase = "placement" | "battle" | "finished"
 export type GameMode = "1vs1" | "1vsAiMarine"
 export type PlayerRole = "player1" | "player2" | null
 
-export type Cell = "👻" | "💥" | "S" | ""
+export type Cell = "👻" | "💥" | "🚢" | ""
 export type Board = Cell[][] // 10x10 board of cells
 export type CellIndex = number // This is 0-99 are valid options
 
@@ -139,17 +139,17 @@ export const placeShip = (
             ? placementLocation + i * boardSize
             : placementLocation + i
 
-        if (playerState.board[Math.floor(cellIndex / boardSize)][cellIndex % boardSize] === "S") {
+        if (playerState.board[Math.floor(cellIndex / boardSize)][cellIndex % boardSize] === "🚢") {
             game.ctx.alert = alerts.shipOverlapError
             console.warn(game.ctx.alert);
             return game
         }
-        newLocation[cellIndex] = "S"
+        newLocation[cellIndex] = "🚢"
     }
 
     // Place ship on board
     Object.keys(newLocation).forEach(cellIndex => {
-        playerState.board[Math.floor(Number(cellIndex) / boardSize)][Number(cellIndex) % boardSize] = "S"
+        playerState.board[Math.floor(Number(cellIndex) / boardSize)][Number(cellIndex) % boardSize] = "🚢"
     })
     ship.location = newLocation
 
@@ -197,7 +197,7 @@ export const handleAttack = (
     let hit = false
     for (const ship of Object.values(defendingState.ships)) {
         console.log(ship)
-        if (ship.location && ship.location[targetCell] === "S") {
+        if (ship.location && ship.location[targetCell] === "🚢") {
             console.log("hit")
             hit = true
             ship.location[targetCell] = "💥"
